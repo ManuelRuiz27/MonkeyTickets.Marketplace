@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: monomarket-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-monomarket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-monomarket_tickets}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - monomarket-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-monomarket}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (NestJS)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: monomarket-api
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-monomarket}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-monomarket_tickets}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Payment gateways
+      CONEKTA_SECRET_KEY: ${CONEKTA_SECRET_KEY}
+      CONEKTA_PUBLIC_KEY: ${CONEKTA_PUBLIC_KEY}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
+      MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY}
+      # Email
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - monomarket-network
+    command: sh -c "pnpm run prisma:migrate && node dist/main.js"
+
+  # Frontend Web (React)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api}
+    container_name: monomarket-web
+    restart: always
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+    networks:
+      - monomarket-network
+
+networks:
+  monomarket-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

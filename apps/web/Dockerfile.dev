@@ -1,0 +1,31 @@
+# Dockerfile para desarrollo del frontend con hot reload
+FROM node:20-alpine
+
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar package.json files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY packages/tsconfig/package.json ./packages/tsconfig/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY apps/web/package.json ./apps/web/
+
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile
+
+# Copiar código fuente
+COPY packages ./packages
+COPY apps/web ./apps/web
+
+# Instalar deps de packages
+RUN cd packages/contracts && pnpm install
+
+WORKDIR /app/apps/web
+
+EXPOSE 5173
+
+CMD ["sh", "-c", "cd /app/packages/contracts && pnpm run generate && pnpm run build && cd /app/apps/web && pnpm run dev -- --host 0.0.0.0"]

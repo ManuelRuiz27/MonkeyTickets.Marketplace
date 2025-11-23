@@ -1,0 +1,23 @@
+{
+    "name": "@monomarket/config",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Shared configuration utilities for MonoMarket Tickets",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "clean": "rm -rf dist",
+        "dev": "tsc -p tsconfig.json --watch"
+    },
+    "dependencies": {
+        "dotenv": "^16.4.1",
+        "pino": "^8.17.2",
+        "pino-pretty": "^10.3.1"
+    },
+    "devDependencies": {
+        "@monomarket/tsconfig": "workspace:*",
+        "@types/node": "^20.11.5",
+        "typescript": "^5.3.3"
+    }
+}

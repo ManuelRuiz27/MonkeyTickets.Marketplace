@@ -1,0 +1,39 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "lib": [
+            "ES2022"
+        ],
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "allowJs": false,
+        "checkJs": false,
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "composite": true,
+        "incremental": true,
+        "paths": {
+            "@monomarket/contracts": [
+                "./packages/contracts/src"
+            ],
+            "@monomarket/config": [
+                "./packages/config/src"
+            ]
+        }
+    },
+    "exclude": [
+        "node_modules",
+        "dist",
+        "build"
+    ]
+}

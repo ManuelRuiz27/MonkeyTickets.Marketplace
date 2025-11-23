@@ -1,0 +1,37 @@
+# Dockerignore para el monorepo
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+README.md
+*.md
+.vscode
+.idea
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+apps/api/prisma/migrations/
+*.db
+*.db-journal
+
+# Generated
+packages/contracts/src/types.ts

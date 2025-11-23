@@ -1,0 +1,22 @@
+{
+    "extends": "@monomarket/tsconfig/frontend.json",
+    "compilerOptions": {
+        "baseUrl": "./",
+        "paths": {
+            "@monomarket/contracts": [
+                "../../packages/contracts/src"
+            ],
+            "@/*": [
+                "./src/*"
+            ]
+        }
+    },
+    "include": [
+        "src"
+    ],
+    "references": [
+        {
+            "path": "./tsconfig.node.json"
+        }
+    ]
+}

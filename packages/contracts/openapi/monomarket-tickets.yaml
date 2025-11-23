@@ -1,0 +1,1356 @@
+openapi: 3.0.3
+info:
+  title: MonoMarket Tickets API
+  description: |
+    Event marketplace platform API for ticket sales, management, and analytics.
+    
+    ## Features
+    - Public marketplace for event discovery and checkout
+    - Organizer panel for event and sales management
+    - Director panel for platform administration
+    - Payment processing with Conekta and Mercado Pago
+    - Automated ticket generation with QR codes and PDF delivery
+  version: 1.0.0
+  contact:
+    name: MonoMarket Tickets Team
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: https://api.monomarket-tickets.com/api
+    description: Production
+
+tags:
+  - name: Public
+    description: Public marketplace endpoints
+  - name: Checkout
+    description: Checkout and order processing
+  - name: Payments
+    description: Payment processing
+  - name: Webhooks
+    description: Payment gateway webhooks
+  - name: Auth
+    description: Authentication
+  - name: Organizer
+    description: Organizer panel endpoints
+  - name: Director
+    description: Director panel endpoints
+
+paths:
+  # ========================================
+  # PUBLIC ENDPOINTS
+  # ========================================
+  /public/events:
+    get:
+      tags: [Public]
+      summary: List all public events
+      description: Get paginated list of published events
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /public/events/{id}:
+    get:
+      tags: [Public]
+      summary: Get event details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          description: Event not found
+
+  # ========================================
+  # CHECKOUT & PAYMENTS
+  # ========================================
+  /checkout/session:
+    post:
+      tags: [Checkout]
+      summary: Create checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventId:
+                  type: string
+                tickets:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      templateId:
+                        type: string
+                      quantity:
+                        type: integer
+                buyer:
+                  $ref: '#/components/schemas/BuyerInput'
+      responses:
+        '201':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                  total:
+                    type: number
+                  currency:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+
+  /checkout/status/{orderId}:
+    get:
+      tags: [Checkout]
+      summary: Get checkout status
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /payments/pay:
+    post:
+      tags: [Payments]
+      summary: Process payment
+      description: Process payment with tokenized card from Conekta or Mercado Pago
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId:
+                  type: string
+                gateway:
+                  type: string
+                  enum: [conekta, mercadopago]
+                paymentMethod:
+                  type: string
+                  enum: [card, google_pay, apple_pay]
+                token:
+                  type: string
+                  description: Payment token from frontend
+      responses:
+        '200':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  # ========================================
+  # WEBHOOKS
+  # ========================================
+  /webhooks/conekta:
+    post:
+      tags: [Webhooks]
+      summary: Conekta webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+
+  /webhooks/mercadopago:
+    post:
+      tags: [Webhooks]
+      summary: Mercado Pago webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+
+  # ========================================
+  # AUTHENTICATION
+  # ========================================
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new organizer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                name:
+                  type: string
+                businessName:
+                  type: string
+      responses:
+        '201':
+          description: Organizer registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+
+  # ========================================
+  # ORGANIZER ENDPOINTS
+  # ========================================
+  /organizer/me:
+    get:
+      tags: [Organizer]
+      summary: Get current organizer profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Organizer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organizer'
+
+  /organizer/events:
+    get:
+      tags: [Organizer]
+      summary: List organizer events
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+    post:
+      tags: [Organizer]
+      summary: Create new event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+
+  /organizer/events/{id}:
+    get:
+      tags: [Organizer]
+      summary: Get event details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+    put:
+      tags: [Organizer]
+      summary: Update event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+    delete:
+      tags: [Organizer]
+      summary: Delete event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Event deleted
+
+  /organizer/events/{id}/sales:
+    get:
+      tags: [Organizer]
+      summary: Get event sales report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sales report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalSales:
+                    type: number
+                  totalTickets:
+                    type: integer
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+
+  /organizer/orders/{orderId}:
+    get:
+      tags: [Organizer]
+      summary: Get order details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /organizer/orders/{orderId}/resend-tickets:
+    post:
+      tags: [Organizer]
+      summary: Resend tickets email
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tickets resent
+
+  /organizer/templates:
+    get:
+      tags: [Organizer]
+      summary: List ticket templates
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketTemplate'
+    post:
+      tags: [Organizer]
+      summary: Create ticket template
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketTemplateInput'
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketTemplate'
+
+  /organizer/templates/{id}:
+    delete:
+      tags: [Organizer]
+      summary: Delete ticket template
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Template deleted
+
+  /organizer/events/{eventId}/template:
+    put:
+      tags: [Organizer]
+      summary: Assign template to event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+      responses:
+        '200':
+          description: Template assigned
+
+  # ========================================
+  # TICKET SCANNER ENDPOINTS
+  # ========================================
+  /tickets/validate/{qrCode}:
+    get:
+      tags: [Organizer]
+      summary: Validate ticket by QR code
+      description: Check ticket validity without checking in
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: qrCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ticket validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  qrCode:
+                    type: string
+                  status:
+                    type: string
+                    enum: [VALID, USED, CANCELLED]
+                  usedAt:
+                    type: string
+                    format: date-time
+                  event:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      title:
+                        type: string
+                      startDate:
+                        type: string
+                        format: date-time
+                      venue:
+                        type: string
+                      address:
+                        type: string
+                      city:
+                        type: string
+                  buyer:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                  template:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                  orderStatus:
+                    type: string
+        '404':
+          description: Ticket not found
+
+  /tickets/check-in/{qrCode}:
+    post:
+      tags: [Organizer]
+      summary: Check in a ticket
+      description: Mark ticket as USED and increment event attendance
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: qrCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check-in successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  ticket:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      qrCode:
+                        type: string
+                      status:
+                        type: string
+                      usedAt:
+                        type: string
+                        format: date-time
+                      buyer:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          email:
+                            type: string
+                      template:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                  event:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      title:
+                        type: string
+                      attendanceCount:
+                        type: integer
+        '400':
+          description: Ticket already used or invalid
+
+  /tickets/event/{eventId}/attendance:
+    get:
+      tags: [Organizer]
+      summary: Get event attendance statistics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Attendance statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                  eventTitle:
+                    type: string
+                  attendanceCount:
+                    type: integer
+                  totalTickets:
+                    type: integer
+                  percentageAttended:
+                    type: number
+
+  # ========================================
+
+  # DIRECTOR ENDPOINTS
+  # ========================================
+  /director/metrics/overview:
+    get:
+      tags: [Director]
+      summary: Get platform overview metrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Platform metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalRevenue:
+                    type: number
+                  totalOrders:
+                    type: integer
+                  totalTickets:
+                    type: integer
+                  totalOrganizers:
+                    type: integer
+                  totalEvents:
+                    type: integer
+
+  /director/metrics/top-organizers:
+    get:
+      tags: [Director]
+      summary: Get top organizers by revenue
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Top organizers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    organizer:
+                      $ref: '#/components/schemas/Organizer'
+                    revenue:
+                      type: number
+                    ticketsSold:
+                      type: integer
+
+  /director/metrics/top-events:
+    get:
+      tags: [Director]
+      summary: Get top events by ticket sales
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Top events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    event:
+                      $ref: '#/components/schemas/Event'
+                    ticketsSold:
+                      type: integer
+                    revenue:
+                      type: number
+
+  /director/organizers:
+    get:
+      tags: [Director]
+      summary: List all organizers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of organizers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organizer'
+
+  /director/organizers/{id}:
+    get:
+      tags: [Director]
+      summary: Get organizer details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organizer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organizer'
+
+  /director/organizers/{id}/status:
+    put:
+      tags: [Director]
+      summary: Update organizer status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, suspended, banned]
+      responses:
+        '200':
+          description: Status updated
+
+  /director/organizers/{id}/fee-plan:
+    put:
+      tags: [Director]
+      summary: Assign fee plan to organizer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feePlanId:
+                  type: string
+      responses:
+        '200':
+          description: Fee plan assigned
+
+  /director/fee-plans:
+    get:
+      tags: [Director]
+      summary: List all fee plans
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of fee plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeePlan'
+    post:
+      tags: [Director]
+      summary: Create fee plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeePlanInput'
+      responses:
+        '201':
+          description: Fee plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeePlan'
+
+  /director/fee-plans/{id}:
+    put:
+      tags: [Director]
+      summary: Update fee plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeePlanInput'
+      responses:
+        '200':
+          description: Fee plan updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeePlan'
+    delete:
+      tags: [Director]
+      summary: Delete fee plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Fee plan deleted
+
+  /director/orders:
+    get:
+      tags: [Director]
+      summary: List all orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /director/orders/{id}:
+    get:
+      tags: [Director]
+      summary: Get order details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /director/orders/{id}/resend-tickets:
+    post:
+      tags: [Director]
+      summary: Resend tickets for order
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tickets resent
+
+# ========================================
+# COMPONENTS
+# ========================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [organizer, director, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    Organizer:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        businessName:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, banned]
+        feePlanId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+        organizerId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        venue:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        coverImage:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, cancelled]
+        createdAt:
+          type: string
+          format: date-time
+        organizer:
+          $ref: '#/components/schemas/Organizer'
+
+    EventInput:
+      type: object
+      required:
+        - title
+        - startDate
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        venue:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        coverImage:
+          type: string
+        status:
+          type: string
+          enum: [draft, published]
+
+    TicketTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        organizerId:
+          type: string
+        eventId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        quantity:
+          type: integer
+        sold:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    TicketTemplateInput:
+      type: object
+      required:
+        - name
+        - price
+        - quantity
+      properties:
+        eventId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+          default: MXN
+        quantity:
+          type: integer
+
+    Buyer:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    BuyerInput:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        eventId:
+          type: string
+        buyerId:
+          type: string
+        status:
+          type: string
+          enum: [pending, paid, cancelled, refunded]
+        total:
+          type: number
+        currency:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+        event:
+          $ref: '#/components/schemas/Event'
+        buyer:
+          $ref: '#/components/schemas/Buyer'
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        payment:
+          $ref: '#/components/schemas/Payment'
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        gateway:
+          type: string
+          enum: [conekta, mercadopago]
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        gatewayTransactionId:
+          type: string
+        paymentMethod:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        templateId:
+          type: string
+        qrCode:
+          type: string
+        status:
+          type: string
+          enum: [valid, used, cancelled]
+        usedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    FeePlan:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        platformFeePercent:
+          type: number
+        platformFeeFixed:
+          type: number
+        paymentGatewayFeePercent:
+          type: number
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    FeePlanInput:
+      type: object
+      required:
+        - name
+        - platformFeePercent
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        platformFeePercent:
+          type: number
+        platformFeeFixed:
+          type: number
+        paymentGatewayFeePercent:
+          type: number
+        isDefault:
+          type: boolean
+
+    LegalLog:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        action:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+        metadata:
+          type: object
+        ipAddress:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    EmailLog:
+      type: object
+      properties:
+        id:
+          type: string
+        to:
+          type: string
+        subject:
+          type: string
+        status:
+          type: string
+          enum: [pending, sent, failed]
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer

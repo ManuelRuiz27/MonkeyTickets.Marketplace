@@ -1,0 +1,35 @@
+# Dockerfile para desarrollo del backend con hot reload
+FROM node:20-alpine
+
+RUN apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar package.json files de todo el monorepo
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+
+# Copiar package.json de cada paquete
+COPY packages/tsconfig/package.json ./packages/tsconfig/
+COPY packages/config/package.json ./packages/config/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY apps/api/package.json ./apps/api/
+
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile
+
+# Copiar el código fuente completo (para que se instalen las deps correctamente)
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+# Instalar pnpm de nuevo para asegurar que las deps de packages estén
+RUN cd packages/contracts && pnpm install
+RUN cd packages/config && pnpm install
+
+WORKDIR /app/apps/api
+
+EXPOSE 3000
+
+CMD ["sh", "-c", "cd /app/packages/contracts && pnpm run generate && pnpm run build && cd /app/packages/config && pnpm run build && cd /app/apps/api && pnpm run prisma:generate && pnpm run prisma:migrate && pnpm run dev"]
