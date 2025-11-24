@@ -38,8 +38,6 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Payment gateways
-      CONEKTA_SECRET_KEY: ${CONEKTA_SECRET_KEY}
-      CONEKTA_PUBLIC_KEY: ${CONEKTA_PUBLIC_KEY}
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
       MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY}
       # Email
@@ -53,7 +51,9 @@ services:
         condition: service_healthy
     networks:
       - monomarket-network
-    command: sh -c "pnpm run prisma:migrate && node dist/main.js"
+    ports:
+      - "3000:3000"
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
   # Frontend Web (React)
   web:

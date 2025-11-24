@@ -1,0 +1,16 @@
+{
+    "name": "@monomarket/e2e",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "playwright test",
+        "test:headed": "playwright test --headed",
+        "clean": "rimraf test-results playwright-report"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.49.0",
+        "rimraf": "^5.0.10",
+        "typescript": "^5.3.3"
+    }
+}

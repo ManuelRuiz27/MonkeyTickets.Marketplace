@@ -114,7 +114,7 @@ cp .env.example .env
 - `JWT_SECRET`: Token secreto seguro
 - `POSTGRES_PASSWORD`: Contraseña segura de PostgreSQL
 - `VITE_API_URL`: URL de tu API en producción
-- Claves de Conekta y Mercado Pago
+- Claves de Mercado Pago
 - Configuración SMTP para emails
 
 ### 2. Construir y Ejecutar

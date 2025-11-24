@@ -1,54 +1,93 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { LegalService } from '../../legal/legal.service';
+
+const CHECKOUT_SESSION_TTL_MINUTES = 30;
+
+interface CheckoutSessionContext {
+    ip: string;
+    userAgent: string;
+    termsVersion: string;
+}
 
 @Injectable()
 export class CheckoutService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private legalService: LegalService,
+    ) { }
 
-    async processCheckout(data: CreateCheckoutDto) {
-        // 1. Validar evento y template
-        const template = await this.prisma.ticketTemplate.findUnique({
-            where: { id: data.templateId },
-            include: { event: true },
+    async createCheckoutSession(data: CreateCheckoutSessionDto, context?: CheckoutSessionContext) {
+        const event = await this.prisma.event.findUnique({
+            where: { id: data.eventId },
         });
 
-        if (!template) {
-            throw new NotFoundException('Ticket template not found');
+        if (!event) {
+            throw new NotFoundException('Event not found');
         }
 
-        if (template.eventId !== data.eventId) {
-            throw new BadRequestException('Template does not belong to this event');
-        }
-
-        // Validaciones de Negocio
-        if (template.event?.status !== 'PUBLISHED') {
+        if (event.status !== 'PUBLISHED') {
             throw new BadRequestException('Event is not available for purchase');
         }
 
-        if (template.event?.endDate && new Date() > template.event.endDate) {
+        if (event.endDate && new Date() > event.endDate) {
             throw new BadRequestException('Event has ended');
         }
 
-        if (template.quantity < data.quantity) {
-            throw new BadRequestException('Not enough tickets available');
+        const ticketsByTemplate = new Map<string, number>();
+        for (const ticket of data.tickets) {
+            const current = ticketsByTemplate.get(ticket.templateId) ?? 0;
+            ticketsByTemplate.set(ticket.templateId, current + ticket.quantity);
         }
 
-        // Ejecutar transacción para asegurar integridad y stock
-        return this.prisma.$transaction(async (tx) => {
-            // Re-verificar stock dentro de la transacción (bloqueo optimista simple)
-            const currentTemplate = await tx.ticketTemplate.findUnique({
-                where: { id: template.id },
-            });
+        const templateIds = [...ticketsByTemplate.keys()];
 
-            if (!currentTemplate || currentTemplate.quantity < data.quantity) {
-                throw new BadRequestException('Tickets sold out during processing');
+        const templates = await this.prisma.ticketTemplate.findMany({
+            where: { id: { in: templateIds } },
+        });
+        const templateMap = new Map(templates.map((template) => [template.id, template]));
+
+        if (templates.length !== templateIds.length) {
+            throw new NotFoundException('One or more ticket templates not found');
+        }
+
+        let total = 0;
+        let currency: string | null = null;
+
+        for (const template of templates) {
+            if (template.eventId !== data.eventId) {
+                throw new BadRequestException('Template does not belong to this event');
             }
 
-            // 2. Calcular total
-            const total = Number(template.price) * data.quantity;
+            const requestedQuantity = ticketsByTemplate.get(template.id) ?? 0;
+            if (template.quantity < requestedQuantity) {
+                throw new BadRequestException('Not enough tickets available');
+            }
 
-            // 3. Crear o buscar comprador
+            if (currency && template.currency !== currency) {
+                throw new BadRequestException('Cannot mix templates from different currencies');
+            }
+
+            currency = currency ?? template.currency;
+            total += Number(template.price) * requestedQuantity;
+        }
+
+        const expiresAt = new Date(Date.now() + CHECKOUT_SESSION_TTL_MINUTES * 60 * 1000);
+
+        const session = await this.prisma.$transaction(async (tx) => {
+            const latestTemplates = await tx.ticketTemplate.findMany({
+                where: { id: { in: templateIds } },
+                select: { id: true, quantity: true },
+            });
+
+            for (const template of latestTemplates) {
+                const requestedQuantity = ticketsByTemplate.get(template.id) ?? 0;
+                if (template.quantity < requestedQuantity) {
+                    throw new BadRequestException('Tickets sold out during processing');
+                }
+            }
+
             let buyer = await tx.buyer.findFirst({
                 where: { email: data.email },
             });
@@ -63,67 +102,77 @@ export class CheckoutService {
                 });
             }
 
-            // 4. Crear Orden
             const order = await tx.order.create({
                 data: {
                     eventId: data.eventId,
                     buyerId: buyer.id,
-                    status: 'PAID',
-                    total: total,
-                    currency: template.currency,
-                    paidAt: new Date(),
+                    status: 'PENDING',
+                    total,
+                    currency: currency ?? 'MXN',
+                    platformFeeAmount: 0,
+                    organizerIncomeAmount: 0,
                 },
             });
 
-            // 5. Crear Pago (Simulado)
-            await tx.payment.create({
-                data: {
-                    orderId: order.id,
-                    gateway: 'CONEKTA',
-                    amount: total,
-                    currency: template.currency,
-                    status: 'COMPLETED',
-                    gatewayTransactionId: `sim_${Date.now()}`,
-                    paymentMethod: 'card',
-                },
-            });
+            const orderItemsData = templateIds
+                .map((templateId) => {
+                    const quantity = ticketsByTemplate.get(templateId) ?? 0;
+                    if (quantity <= 0) {
+                        return null;
+                    }
 
-            // 6. Generar Tickets
-            const tickets = [];
-            for (let i = 0; i < data.quantity; i++) {
-                tickets.push({
-                    orderId: order.id,
-                    templateId: template.id,
-                    qrCode: `TICKET-${order.id}-${i + 1}`,
-                    status: 'VALID',
+                    const template = templateMap.get(templateId);
+                    if (!template) {
+                        return null;
+                    }
+
+                    return {
+                        orderId: order.id,
+                        templateId,
+                        quantity,
+                        unitPrice: template.price,
+                        currency: template.currency,
+                    };
+                })
+                .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+            if (orderItemsData.length > 0) {
+                await tx.orderItem.createMany({
+                    data: orderItemsData,
                 });
             }
 
-            await tx.ticket.createMany({
-                data: tickets as any,
-            });
-
-            // Recuperar los IDs de los tickets creados
-            const createdTickets = await tx.ticket.findMany({
-                where: { orderId: order.id },
-                select: { id: true, qrCode: true }
-            });
-
-            // 7. Actualizar inventario
-            await tx.ticketTemplate.update({
-                where: { id: template.id },
+            await tx.payment.create({
                 data: {
-                    sold: { increment: data.quantity },
-                    quantity: { decrement: data.quantity },
+                    orderId: order.id,
+                    gateway: 'MERCADOPAGO',
+                    amount: total,
+                    currency: currency ?? 'MXN',
+                    status: 'PENDING',
                 },
             });
 
             return {
-                success: true,
-                orderId: order.id,
-                tickets: createdTickets,
-                message: 'Purchase completed successfully',
+                response: {
+                    orderId: order.id,
+                    total: Number(order.total),
+                    currency: order.currency,
+                    expiresAt: expiresAt.toISOString(),
+                },
+                buyerId: buyer.id,
             };
         });
+
+        if (context) {
+            await this.legalService.logOrderContext(
+                session.response.orderId,
+                session.buyerId,
+                context.ip,
+                context.userAgent,
+                context.termsVersion,
+            );
+        }
+
+        return session.response;
     }
 }

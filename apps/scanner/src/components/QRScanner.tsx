@@ -13,7 +13,13 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, disabled = false }) => {
     const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
     useEffect(() => {
-        if (!videoRef.current || disabled) return;
+        if (!videoRef.current) return;
+
+        if (disabled) {
+            codeReaderRef.current?.reset();
+            setIsScanning(false);
+            return;
+        }
 
         const codeReader = new BrowserMultiFormatReader();
         codeReaderRef.current = codeReader;
@@ -79,10 +85,16 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, disabled = false }) => {
                     <p>{error}</p>
                 </div>
             )}
-            {isScanning && !error && (
+            {isScanning && !error && !disabled && (
                 <div className="scanner-status">
                     <div className="pulse"></div>
                     <span>Scanning for QR codes...</span>
+                </div>
+            )}
+            {!error && disabled && (
+                <div className="scanner-status paused">
+                    <div className="pulse paused"></div>
+                    <span>Camera paused</span>
                 </div>
             )}
         </div>

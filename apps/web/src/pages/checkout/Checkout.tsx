@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 
+type PaymentProviderOption = 'mercadopago';
+type PaymentMethodOption = 'card' | 'google_pay' | 'apple_pay' | 'spei' | 'oxxo';
+
+const PROVIDERS: PaymentProviderOption[] = ['mercadopago'];
+const PAYMENT_METHODS: PaymentMethodOption[] = ['card', 'google_pay', 'apple_pay', 'spei', 'oxxo'];
+const CARD_BASED_METHODS: PaymentMethodOption[] = ['card', 'google_pay', 'apple_pay'];
+
 export function Checkout() {
     const { eventId } = useParams();
     const location = useLocation();
@@ -16,7 +23,29 @@ export function Checkout() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
-    const [tickets, setTickets] = useState<any[]>([]);
+    const [checkoutSession, setCheckoutSession] = useState<{
+        orderId: string;
+        total: number;
+        currency?: string;
+        expiresAt: string;
+    } | null>(null);
+    const [paymentResult, setPaymentResult] = useState<{
+        paymentId: string;
+        providerPaymentId: string;
+        redirectUrl?: string;
+        instructions?: string;
+    } | null>(null);
+    const [paymentData, setPaymentData] = useState<{
+        provider: PaymentProviderOption;
+        method: PaymentMethodOption;
+        token: string;
+        installments: number;
+    }>({
+        provider: 'mercadopago',
+        method: 'card',
+        token: '',
+        installments: 1,
+    });
 
     if (!location.state) {
         return <div className="p-8 text-center">No hay información de compra. Vuelve al evento.</div>;
@@ -45,6 +74,14 @@ export function Checkout() {
             errors.push('El nombre es muy corto');
         }
 
+        if (!paymentData.token.trim()) {
+            errors.push('Ingresa el token o referencia del pago');
+        }
+
+        if (CARD_BASED_METHODS.includes(paymentData.method) && paymentData.installments < 1) {
+            errors.push('Selecciona un numero de mensualidades valido');
+        }
+
         if (errors.length > 0) {
             setError(errors.join('. '));
             return false;
@@ -60,17 +97,35 @@ export function Checkout() {
 
         setLoading(true);
         setError('');
+        setCheckoutSession(null);
+        setPaymentResult(null);
 
         try {
             const checkoutData = {
                 eventId: eventId!,
-                templateId,
-                quantity,
+                tickets: [
+                    {
+                        templateId,
+                        quantity: Number(quantity),
+                    }
+                ],
                 ...formData
             };
             console.log('Sending checkout data:', checkoutData);
-            const response: any = await apiClient.checkout(checkoutData);
-            setTickets(response.tickets || []);
+            const sessionResponse = await apiClient.createCheckoutSession(checkoutData);
+            setCheckoutSession(sessionResponse);
+
+            const paymentResponse = await apiClient.payOrder({
+                orderId: sessionResponse.orderId,
+                provider: paymentData.provider,
+                method: paymentData.method,
+                token: paymentData.token.trim(),
+                ...(CARD_BASED_METHODS.includes(paymentData.method) &&
+                    paymentData.installments > 0
+                    ? { installments: paymentData.installments }
+                    : {}),
+            });
+            setPaymentResult(paymentResponse);
             setSuccess(true);
         } catch (err: any) {
             console.error('Checkout error:', err);
@@ -82,39 +137,63 @@ export function Checkout() {
         }
     };
 
-    if (success) {
+    if (success && checkoutSession && paymentResult) {
+        const currencyLabel = checkoutSession.currency ?? 'MXN';
+        const formattedTotal = checkoutSession.total.toLocaleString('es-MX', {
+            style: 'currency',
+            currency: currencyLabel,
+        });
+        const expiresAtLabel = new Date(checkoutSession.expiresAt).toLocaleString();
+
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19a7 7 0 100-14 7 7 0 000 14z" />
                         </svg>
                     </div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-4">¡Compra Exitosa!</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">Pago iniciado</h2>
                     <p className="text-gray-600 mb-6">
-                        Tus tickets han sido enviados a <strong>{formData.email}</strong>.
+                        Tu orden <strong>{checkoutSession.orderId}</strong> continúa en proceso. Te enviamos los detalles a <strong>{formData.email}</strong>.
                     </p>
 
-                    {tickets.length > 0 && (
-                        <div className="mb-8 space-y-3">
-                            <h3 className="font-semibold text-gray-800">Descarga tus boletos:</h3>
-                            {tickets.map((ticket, index) => (
-                                <a
-                                    key={ticket.id}
-                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/tickets/${ticket.id}/pdf`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    Descargar Boleto #{index + 1}
-                                </a>
-                            ))}
+                    <div className="bg-gray-50 rounded-xl p-6 text-left space-y-4 mb-8">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500">Total</span>
+                            <span className="font-semibold text-gray-900">{formattedTotal}</span>
                         </div>
-                    )}
+                        <div className="flex justify-between text-sm text-gray-600">
+                            <span>Expira</span>
+                            <span>{expiresAtLabel}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white/60 rounded-xl p-6 text-left space-y-3 mb-6">
+                        <p className="text-sm text-gray-500">Proveedor: <span className="font-medium text-gray-900 uppercase">{paymentData.provider}</span></p>
+                        <p className="text-sm text-gray-500">Método: <span className="font-medium text-gray-900 uppercase">{paymentData.method}</span></p>
+                        <p className="text-sm text-gray-500 break-all">
+                            Referencia del pago: <span className="font-mono text-gray-900">{paymentResult.providerPaymentId}</span>
+                        </p>
+                        {paymentResult.instructions && (
+                            <p className="text-sm text-gray-600">{paymentResult.instructions}</p>
+                        )}
+                        {paymentResult.redirectUrl && (
+                            <a
+                                href={paymentResult.redirectUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full bg-primary-50 text-primary-700 px-4 py-3 rounded-lg font-medium hover:bg-primary-100 transition-colors text-center"
+                            >
+                                Continuar pago
+                            </a>
+                        )}
+                    </div>
+
+                    <p className="text-sm text-gray-500 mb-6">
+                        Completa el pago antes de la hora de expiración para asegurar tus boletos.
+                    </p>
 
                     <button
                         onClick={() => navigate('/')}
@@ -181,6 +260,67 @@ export function Checkout() {
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                     placeholder="+52 55 1234 5678"
                                 />
+                            </div>
+
+                            <div className="border-t border-gray-100 pt-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Detalles de Pago</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Proveedor</label>
+                                        <select
+                                            value={paymentData.provider}
+                                            onChange={(e) => setPaymentData({ ...paymentData, provider: e.target.value as PaymentProviderOption })}
+                                            className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        >
+                                            {PROVIDERS.map((provider) => (
+                                                <option key={provider} value={provider}>{provider.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Método</label>
+                                        <select
+                                            value={paymentData.method}
+                                            onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value as PaymentMethodOption })}
+                                            className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        >
+                                            {PAYMENT_METHODS.map((method) => (
+                                                <option key={method} value={method}>{method.replace('_', ' ').toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Token o Referencia</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={paymentData.token}
+                                        onChange={(e) => setPaymentData({ ...paymentData, token: e.target.value })}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        placeholder="token_abc123"
+                                    />
+                                </div>
+                                {CARD_BASED_METHODS.includes(paymentData.method) && (
+                                    <div className="mb-4">
+                                        <label
+                                            htmlFor="checkout-installments"
+                                            className="block text-sm font-medium text-gray-700 mb-2"
+                                        >
+                                            Mensualidades
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={12}
+                                            id="checkout-installments"
+                                            aria-label="Mensualidades"
+                                            value={paymentData.installments}
+                                            onChange={(e) => setPaymentData({ ...paymentData, installments: Number(e.target.value) })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-6">

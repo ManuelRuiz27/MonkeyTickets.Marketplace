@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 
 export function OrganizerLogin() {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -12,11 +13,10 @@ export function OrganizerLogin() {
         e.preventDefault();
 
         try {
-            const response = await apiClient.login(email, password) as any;
-            localStorage.setItem('authToken', response.token);
-            navigate('/organizer/dashboard');
-        } catch (err) {
-            setError('Credenciales inválidas');
+            await login(email, password, { expectedRole: 'ORGANIZER' });
+            navigate('/organizer/events');
+        } catch (err: any) {
+            setError(err.message || 'Credenciales invA�lidas');
         }
     };
 
@@ -29,7 +29,7 @@ export function OrganizerLogin() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900">Inicio de Sesión</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">Inicio de SesiA3n</h1>
                     <p className="text-gray-600 mt-2">Panel de Organizador</p>
                 </div>
 
@@ -42,7 +42,7 @@ export function OrganizerLogin() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Correo Electrónico
+                            Correo ElectrA3nico
                         </label>
                         <input
                             type="email"
@@ -56,14 +56,14 @@ export function OrganizerLogin() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Contraseña
+                            ContraseA�a
                         </label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
-                            placeholder="••••••••"
+                            placeholder="�?��?��?��?��?��?��?��?�"
                             required
                         />
                     </div>
@@ -72,15 +72,15 @@ export function OrganizerLogin() {
                         type="submit"
                         className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200 shadow-md hover:shadow-lg"
                     >
-                        Iniciar Sesión
+                        Iniciar SesiA3n
                     </button>
                 </form>
 
                 <div className="mt-6 text-center text-sm text-gray-600">
                     <p>
-                        ¿No tienes cuenta?{' '}
+                        A�No tienes cuenta?{' '}
                         <a href="/auth/register" className="text-primary-600 hover:text-primary-700 font-medium">
-                            Regístrate aquí
+                            RegA-strate aquA-
                         </a>
                     </p>
                 </div>

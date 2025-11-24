@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -56,6 +57,10 @@ model Event {
   endDate     DateTime?
   coverImage  String?
   status      EventStatus @default(DRAFT)
+  capacity    Int     @default(0)
+  price       Decimal @default(0) @db.Decimal(10, 2)
+  currency    String  @default("MXN")
+  isPublic    Boolean @default(true)
   
   // Custom PDF Template
   pdfTemplatePath String?  // Path to uploaded PDF template
@@ -77,6 +82,9 @@ model Event {
   @@map("events")
 }
 
+// After modifying the schema run the migration:
+// npx prisma migrate dev --name add_event_fields_for_organizer
+
 model TicketTemplate {
   id          String   @id @default(uuid())
   organizerId String
@@ -93,6 +101,7 @@ model TicketTemplate {
   organizer Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
   tickets   Ticket[]
+  orderItems OrderItem[]
 
   @@map("ticket_templates")
 }
@@ -117,6 +126,8 @@ model Order {
   status    OrderStatus @default(PENDING)
   total     Decimal     @db.Decimal(10, 2)
   currency  String      @default("MXN")
+  platformFeeAmount    Decimal @default(0) @db.Decimal(10, 2)
+  organizerIncomeAmount Decimal @default(0) @db.Decimal(10, 2)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   paidAt    DateTime?
@@ -126,6 +137,7 @@ model Order {
   tickets  Ticket[]
   payment  Payment?
   emailLogs EmailLog[]
+  items    OrderItem[]
 
   @@map("orders")
 }
@@ -196,7 +208,7 @@ model FeePlan {
 
 model LegalLog {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String?
   action    String
   entity    String
   entityId  String?
@@ -204,7 +216,7 @@ model LegalLog {
   ipAddress String?
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@map("legal_logs")
 }
@@ -215,6 +227,7 @@ model EmailLog {
   to        String
   subject   String
   status    EmailStatus    @default(PENDING)
+  providerMessageId String?
   sentAt    DateTime?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
@@ -222,6 +235,21 @@ model EmailLog {
   order Order? @relation(fields: [orderId], references: [id])
 
   @@map("email_logs")
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  templateId String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  currency   String   @default("MXN")
+  createdAt  DateTime @default(now())
+
+  order    Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  template TicketTemplate @relation(fields: [templateId], references: [id])
+
+  @@map("order_items")
 }
 
 // Enums
@@ -236,6 +264,9 @@ enum OrganizerStatus {
   ACTIVE
   SUSPENDED
   BANNED
+  APPROVED
+  PENDING
+  BLOCKED
 }
 
 enum EventStatus {

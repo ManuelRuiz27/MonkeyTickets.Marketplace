@@ -361,7 +361,7 @@ async function main() {
         await prisma.payment.create({
             data: {
                 orderId: order.id,
-                gateway: 'CONEKTA',
+                gateway: 'MERCADOPAGO',
                 amount: totalAmount,
                 currency: 'MXN',
                 status: 'COMPLETED',

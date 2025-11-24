@@ -8,7 +8,7 @@ info:
     - Public marketplace for event discovery and checkout
     - Organizer panel for event and sales management
     - Director panel for platform administration
-    - Payment processing with Conekta and Mercado Pago
+    - Payment processing with Mercado Pago
     - Automated ticket generation with QR codes and PDF delivery
   version: 1.0.0
   contact:
@@ -166,7 +166,7 @@ paths:
     post:
       tags: [Payments]
       summary: Process payment
-      description: Process payment with tokenized card from Conekta or Mercado Pago
+      description: Process payment with tokenized card from Mercado Pago
       requestBody:
         required: true
         content:
@@ -178,7 +178,7 @@ paths:
                   type: string
                 gateway:
                   type: string
-                  enum: [conekta, mercadopago]
+                  enum: [mercadopago]
                 paymentMethod:
                   type: string
                   enum: [card, google_pay, apple_pay]
@@ -196,20 +196,6 @@ paths:
   # ========================================
   # WEBHOOKS
   # ========================================
-  /webhooks/conekta:
-    post:
-      tags: [Webhooks]
-      summary: Conekta webhook endpoint
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: Webhook processed
-
   /webhooks/mercadopago:
     post:
       tags: [Webhooks]
@@ -1226,7 +1212,7 @@ components:
           type: string
         gateway:
           type: string
-          enum: [conekta, mercadopago]
+          enum: [mercadopago]
         amount:
           type: number
         currency:

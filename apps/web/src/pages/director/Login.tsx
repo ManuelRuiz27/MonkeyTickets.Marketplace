@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 
 export function DirectorLogin() {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -12,11 +13,10 @@ export function DirectorLogin() {
         e.preventDefault();
 
         try {
-            const response = await apiClient.login(email, password) as any;
-            localStorage.setItem('authToken', response.token);
+            await login(email, password, { expectedRole: 'DIRECTOR' });
             navigate('/director/dashboard');
-        } catch (err) {
-            setError('Credenciales inválidas o no tienes permisos de director');
+        } catch (err: any) {
+            setError(err.message || 'Credenciales invA�lidas o rol no permitido');
         }
     };
 
@@ -30,7 +30,7 @@ export function DirectorLogin() {
                         </svg>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900">Acceso Director</h1>
-                    <p className="text-gray-600 mt-2">Panel de Administración</p>
+                    <p className="text-gray-600 mt-2">Panel de AdministraciA3n</p>
                 </div>
 
                 {error && (
@@ -42,7 +42,7 @@ export function DirectorLogin() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Correo Electrónico
+                            Correo ElectrA3nico
                         </label>
                         <input
                             type="email"
@@ -56,14 +56,14 @@ export function DirectorLogin() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Contraseña
+                            ContraseA�a
                         </label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-colors"
-                            placeholder="••••••••"
+                            placeholder="�?��?��?��?��?��?��?��?�"
                             required
                         />
                     </div>

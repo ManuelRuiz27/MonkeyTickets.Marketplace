@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
+import { LegalService } from '../../legal/legal.service';
+import { PrismaModule } from '../prisma/prisma.module';
 
-// Legal module handles compliance logging and audit trails
-@Module({})
+@Module({
+    imports: [PrismaModule],
+    providers: [LegalService],
+    exports: [LegalService],
+})
 export class LegalModule { }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import QRScanner from '../components/QRScanner';
 import TicketStatus from '../components/TicketStatus';
@@ -14,11 +14,20 @@ const Scanner: React.FC = () => {
     const [checking, setChecking] = useState(false);
     const [lastScanTime, setLastScanTime] = useState(0);
     const [statusMessage, setStatusMessage] = useState('');
+    const [scannerPaused, setScannerPaused] = useState(false);
+    const [overlayActive, setOverlayActive] = useState(false);
+    const [usedAlert, setUsedAlert] = useState(false);
+    const overlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (eventId) {
             loadAttendance();
         }
+        return () => {
+            if (overlayTimeoutRef.current) {
+                clearTimeout(overlayTimeoutRef.current);
+            }
+        };
     }, [eventId]);
 
     const loadAttendance = async () => {
@@ -31,27 +40,50 @@ const Scanner: React.FC = () => {
         }
     };
 
+    const scheduleOverlayReset = useCallback(() => {
+        if (overlayTimeoutRef.current) {
+            clearTimeout(overlayTimeoutRef.current);
+        }
+        overlayTimeoutRef.current = setTimeout(() => {
+            setOverlayActive(false);
+            setScannerPaused(false);
+        }, 2000);
+    }, []);
+
     const handleScan = useCallback(async (qrCode: string) => {
         // Prevent duplicate scans
         const now = Date.now();
-        if (now - lastScanTime < 2000) {
+        if (scannerPaused || now - lastScanTime < 2000) {
             return;
         }
         setLastScanTime(now);
+        setScannerPaused(true);
 
         try {
             setStatusMessage('Validating...');
             const ticket = await apiService.validateTicket(qrCode);
             setCurrentTicket(ticket);
             setStatusMessage('');
+
+            const alreadyUsed = ticket.status === 'USED';
+            setUsedAlert(alreadyUsed);
+            if (alreadyUsed && typeof navigator !== 'undefined' && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+                navigator.vibrate([120, 60, 120]);
+            }
+
+            setOverlayActive(true);
+            scheduleOverlayReset();
         } catch (err: any) {
             setStatusMessage(err.response?.data?.message || 'Ticket not found');
             setCurrentTicket(null);
+            setUsedAlert(false);
+            setOverlayActive(false);
+            setScannerPaused(false);
 
             // Clear error message after 3 seconds
             setTimeout(() => setStatusMessage(''), 3000);
         }
-    }, [lastScanTime]);
+    }, [lastScanTime, scannerPaused, scheduleOverlayReset]);
 
     const handleCheckIn = async () => {
         if (!currentTicket) return;
@@ -77,6 +109,7 @@ const Scanner: React.FC = () => {
             }
 
             setStatusMessage('✓ Check-in successful!');
+            setUsedAlert(false);
 
             // Clear after 2 seconds and reset for next scan
             setTimeout(() => {
@@ -97,7 +130,7 @@ const Scanner: React.FC = () => {
     };
 
     return (
-        <div className="scanner-page">
+        <div className={`scanner-page ${overlayActive ? 'overlay-active' : ''}`}>
             <div className="scanner-header">
                 <button onClick={handleGoBack} className="back-button">
                     ← Back to Events
@@ -108,7 +141,7 @@ const Scanner: React.FC = () => {
             <AttendanceStats stats={attendance} />
 
             <div className="scanner-section">
-                <QRScanner onScan={handleScan} disabled={checking} />
+                <QRScanner onScan={handleScan} disabled={checking || scannerPaused} />
 
                 {statusMessage && (
                     <div className={`status-message ${statusMessage.includes('✓') ? 'success' : statusMessage.includes('❌') ? 'error' : 'info'}`}>
@@ -116,12 +149,29 @@ const Scanner: React.FC = () => {
                     </div>
                 )}
 
-                <TicketStatus
-                    ticket={currentTicket}
-                    onCheckIn={handleCheckIn}
-                    checking={checking}
-                />
+                {!overlayActive && (
+                    <TicketStatus
+                        ticket={currentTicket}
+                        onCheckIn={handleCheckIn}
+                        checking={checking}
+                        className={usedAlert ? 'used-alert' : ''}
+                    />
+                )}
             </div>
+
+            {overlayActive && currentTicket && (
+                <div className={`checkin-overlay ${usedAlert ? 'warning' : ''}`}>
+                    <div className="overlay-spotlight"></div>
+                    <div className="overlay-panel">
+                        <TicketStatus
+                            ticket={currentTicket}
+                            onCheckIn={handleCheckIn}
+                            checking={checking}
+                            className={usedAlert ? 'used-alert' : ''}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

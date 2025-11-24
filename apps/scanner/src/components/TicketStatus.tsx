@@ -5,18 +5,24 @@ interface TicketStatusProps {
     ticket: TicketValidationResult | null;
     onCheckIn?: () => void;
     checking?: boolean;
+    className?: string;
 }
 
-const TicketStatus: React.FC<TicketStatusProps> = ({ ticket, onCheckIn, checking }) => {
+const TicketStatus: React.FC<TicketStatusProps> = ({ ticket, onCheckIn, checking, className }) => {
     if (!ticket) return null;
 
     const isValid = ticket.status === 'VALID' && ticket.orderStatus === 'PAID';
     const isUsed = ticket.status === 'USED';
     const isCancelled = ticket.status === 'CANCELLED';
     const isPending = ticket.orderStatus === 'PENDING';
+    const classes = ['ticket-status', isValid ? 'valid' : isUsed ? 'used' : 'invalid'];
+
+    if (className) {
+        classes.push(className);
+    }
 
     return (
-        <div className={`ticket-status ${isValid ? 'valid' : isUsed ? 'used' : 'invalid'}`}>
+        <div className={classes.join(' ')}>
             <div className="status-icon">
                 {isValid ? '✓' : '✗'}
             </div>
