@@ -7,6 +7,10 @@ type ApiTicketTemplate = ApiSchemas['TicketTemplate'];
 type ApiFeePlan = ApiSchemas['FeePlan'];
 type ApiOrder = ApiSchemas['Order'];
 type ApiPagination = ApiSchemas['Pagination'];
+type OpenpayChargeRequest = ApiSchemas['OpenpayChargeRequest'];
+type OpenpayChargeResponse = ApiSchemas['OpenpayChargeResponse'];
+type MercadoPagoPreferenceRequest = ApiSchemas['MercadoPagoPreferenceRequest'];
+type MercadoPagoPreferenceResponse = ApiSchemas['MercadoPagoPreferenceResponse'];
 
 export type CheckoutSessionResponse = {
     orderId: string;
@@ -184,6 +188,20 @@ class ApiClient {
         return this.request<PaymentResponse>('/payments/pay', {
             method: 'POST',
             body: JSON.stringify(data),
+        });
+    }
+
+    public async createOpenpayCharge(body: OpenpayChargeRequest) {
+        return this.request<OpenpayChargeResponse>('/payments/openpay/charge', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    public async createMercadoPagoPreference(body: MercadoPagoPreferenceRequest) {
+        return this.request<MercadoPagoPreferenceResponse>('/payments/mercadopago/preference', {
+            method: 'POST',
+            body: JSON.stringify(body),
         });
     }
 

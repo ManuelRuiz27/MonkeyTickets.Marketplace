@@ -6,6 +6,7 @@ const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = process.env.SMTP_PORT;
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
+const IS_SMTP_CONFIGURED = Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
 
 interface OrderSummary {
     id: string;
@@ -36,6 +37,9 @@ export class MailService {
 
     async sendTicketsEmail(params: SendTicketsEmailParams): Promise<void> {
         // TODO: integrate SMTP provider using SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS.
+        if (!IS_SMTP_CONFIGURED) {
+            this.logger.warn('SMTP credentials are not fully configured; skipping real email sending.');
+        }
         this.logger.log('MailService.sendTicketsEmail called', {
             orderId: params.orderId,
             to: params.to,

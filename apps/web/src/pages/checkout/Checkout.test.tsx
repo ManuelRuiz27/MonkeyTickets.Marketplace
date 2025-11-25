@@ -3,18 +3,33 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import { Checkout } from './Checkout';
+import { CheckoutSuccess } from './CheckoutSuccess';
 import { apiClient } from '../../api/client';
 
 vi.mock('../../api/client', () => ({
     apiClient: {
         createCheckoutSession: vi.fn(),
-        payOrder: vi.fn(),
+        createMercadoPagoPreference: vi.fn(),
     },
+}));
+
+vi.mock('../../lib/mercadoPago', () => ({
+    getMercadoPagoInstance: vi.fn().mockResolvedValue({
+        bricks: () => ({
+            create: vi.fn().mockResolvedValue(undefined),
+        }),
+    }),
+}));
+
+vi.mock('../../features/checkout/components/OpenpayCardForm', () => ({
+    OpenpayCardForm: ({ onSuccess }: { onSuccess: (response: any) => void }) => (
+        <button onClick={() => onSuccess({ id: 'charge-1', status: 'completed' })}>Simular pago</button>
+    ),
 }));
 
 const mockedClient = apiClient as unknown as {
     createCheckoutSession: ReturnType<typeof vi.fn>;
-    payOrder: ReturnType<typeof vi.fn>;
+    createMercadoPagoPreference: ReturnType<typeof vi.fn>;
 };
 
 const renderCheckout = () =>
@@ -35,6 +50,7 @@ const renderCheckout = () =>
         >
             <Routes>
                 <Route path="/checkout/:eventId" element={<Checkout />} />
+                <Route path="/checkout/success" element={<CheckoutSuccess />} />
             </Routes>
         </MemoryRouter>,
     );
@@ -44,30 +60,21 @@ describe('Checkout page', () => {
         vi.clearAllMocks();
     });
 
-    it('submits buyer information and displays success state', async () => {
+    it('crea la sesión y redirige tras simular un pago', async () => {
         mockedClient.createCheckoutSession.mockResolvedValue({
             orderId: 'order-xyz',
             total: 200,
             currency: 'MXN',
             expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
         });
-        mockedClient.payOrder.mockResolvedValue({
-            paymentId: 'payment-xyz',
-            providerPaymentId: 'mp_123',
-        });
 
         renderCheckout();
 
-        await userEvent.type(screen.getByPlaceholderText('Juan Pérez'), 'Test Buyer');
+        await userEvent.type(screen.getByPlaceholderText('Juan Perez'), 'Test Buyer');
         await userEvent.type(screen.getByPlaceholderText('juan@ejemplo.com'), 'buyer@example.com');
-        await userEvent.type(screen.getByPlaceholderText('+52 55 1234 5678'), '5512345678');
+        await userEvent.type(screen.getByPlaceholderText('5512345678'), '5512345678');
 
-        const selects = screen.getAllByRole('combobox');
-        await userEvent.selectOptions(selects[0], 'mercadopago');
-        await userEvent.selectOptions(selects[1], 'spei');
-        await userEvent.type(screen.getByPlaceholderText(/token_abc123/i), 'tok_visa');
-
-        await userEvent.click(screen.getByRole('button', { name: /Pagar Ahora/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Continuar con el pago/i }));
 
         await waitFor(() => {
             expect(mockedClient.createCheckoutSession).toHaveBeenCalledWith(
@@ -78,13 +85,9 @@ describe('Checkout page', () => {
             );
         });
 
-        await screen.findByText(/Pago iniciado/i);
-        expect(mockedClient.payOrder).toHaveBeenCalledWith(
-            expect.objectContaining({
-                provider: 'mercadopago',
-                method: 'spei',
-                token: 'tok_visa',
-            }),
-        );
+        await screen.findByRole('button', { name: /Simular pago/i });
+        await userEvent.click(screen.getByRole('button', { name: /Simular pago/i }));
+
+        await screen.findByText(/Compra completada/i);
     });
 });

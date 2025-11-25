@@ -15,6 +15,11 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    const role = localStorage.getItem('userRole');
+    const organizerId = localStorage.getItem('organizerId');
+    if (role === 'ORGANIZER' && organizerId) {
+        config.headers['x-organizer-id'] = organizerId;
+    }
     return config;
 });
 
@@ -29,6 +34,9 @@ export interface LoginResponse {
         email: string;
         name: string;
         role: string;
+        organizer?: {
+            id: string;
+        } | null;
     };
     token: string;
 }
@@ -95,15 +103,31 @@ export const apiService = {
         if (response.data.token) {
             localStorage.setItem('token', response.data.token);
         }
+        if (response.data.user) {
+            localStorage.setItem('userRole', response.data.user.role);
+            if (response.data.user.organizer?.id) {
+                localStorage.setItem('organizerId', response.data.user.organizer.id);
+            } else {
+                localStorage.removeItem('organizerId');
+            }
+        }
         return response.data;
     },
 
     logout() {
         localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('organizerId');
     },
 
     // Events
     async getOrganizerEvents(): Promise<Event[]> {
+        const role = localStorage.getItem('userRole');
+        if (role === 'STAFF') {
+            const response = await api.get<Event[]>('/tickets/staff/events');
+            return response.data;
+        }
+
         const response = await api.get<Event[]>('/organizer/events');
         return response.data;
     },

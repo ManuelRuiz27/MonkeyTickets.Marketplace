@@ -7,5 +7,4 @@ class ResizeObserver {
     disconnect() { /* noop */ }
 }
 
-// @ts-ignore
-global.ResizeObserver = global.ResizeObserver || ResizeObserver;
+global.ResizeObserver = global.ResizeObserver || (ResizeObserver as typeof global.ResizeObserver);

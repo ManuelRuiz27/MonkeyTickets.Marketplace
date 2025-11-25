@@ -3,13 +3,15 @@ import { BullModule } from '@nestjs/bull';
 import { PaymentsController } from '../../payments/payments.controller';
 import { PaymentsService } from '../../payments/payments.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { PaymentsConfigService } from '../../payments/payments.config';
 import { PaymentsWebhooksController } from '../../payments/webhooks.controller';
 import { PaymentsWebhooksService } from '../../payments/webhooks.service';
 import { PaymentTasksService } from '../../payments/payment-tasks.service';
 import { ORDER_FULFILLMENT_QUEUE } from '../../payments/payment.constants';
 import { OrderFulfillmentProcessor } from '../../payments/order-fulfillment.processor';
 import { MailModule } from '../mail/mail.module';
+import { PaymentsConfigModule } from './payments-config.module';
+import { OpenpayModule } from './openpay/openpay.module';
+import { MercadoPagoModule } from './mercadopago/mercadopago.module';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 let redisHost = 'localhost';
@@ -29,6 +31,9 @@ try {
     imports: [
         PrismaModule,
         MailModule,
+        PaymentsConfigModule,
+        OpenpayModule,
+        MercadoPagoModule,
         BullModule.forRoot({
             redis: {
                 host: redisHost,
@@ -43,7 +48,6 @@ try {
     controllers: [PaymentsController, PaymentsWebhooksController],
     providers: [
         PaymentsService,
-        PaymentsConfigService,
         PaymentsWebhooksService,
         PaymentTasksService,
         OrderFulfillmentProcessor,

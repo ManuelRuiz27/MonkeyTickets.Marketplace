@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { EventList } from './pages/marketplace/EventList';
 import { EventDetail } from './pages/marketplace/EventDetail';
 import { Checkout } from './pages/checkout/Checkout';
+import { CheckoutSuccess } from './pages/checkout/CheckoutSuccess';
 import { OrganizerLogin } from './pages/organizer/Login';
 import { EventPdfTemplate } from './pages/organizer/EventPdfTemplate';
 import { DirectorLogin } from './pages/director/Login';
@@ -23,6 +24,7 @@ function App() {
                 <Route path="/" element={<EventList />} />
                 <Route path="/events/:eventId" element={<EventDetail />} />
                 <Route path="/checkout/:eventId" element={<Checkout />} />
+                <Route path="/checkout/success" element={<CheckoutSuccess />} />
 
                 {/* Organizer Panel */}
                 <Route path="/organizer/login" element={<OrganizerLogin />} />

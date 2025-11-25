@@ -1,6 +1,7 @@
-import { Controller, Get, Param, StreamableFile, Post, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, StreamableFile, Post, UseGuards, HttpException, HttpStatus, Req } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Request } from 'express';
 
 
 @Controller('tickets')
@@ -54,5 +55,15 @@ export class TicketsController {
                 error instanceof HttpException ? error.getStatus() : HttpStatus.NOT_FOUND
             );
         }
+    }
+
+    @Get('staff/events')
+    @UseGuards(JwtAuthGuard)
+    async getStaffEvents(@Req() req: Request & { user?: any }) {
+        if (!req.user?.id) {
+            throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+        }
+
+        return this.ticketsService.getStaffEvents(req.user.id);
     }
 }

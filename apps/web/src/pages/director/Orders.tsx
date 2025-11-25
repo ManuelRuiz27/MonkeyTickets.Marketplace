@@ -47,7 +47,7 @@ export function DirectorOrdersPage() {
                 total: response.meta.total,
             }));
         } catch (err: any) {
-            setError(err.message || 'No se pudieron cargar las A"rdenes');
+            setError(err.message || 'No se pudieron cargar las Órdenes');
         } finally {
             setLoading(false);
         }
@@ -76,7 +76,7 @@ export function DirectorOrdersPage() {
         <div className="min-h-screen bg-gray-50">
             <header className="bg-white border-b shadow-sm">
                 <div className="container mx-auto px-4 py-6">
-                    <h1 className="text-3xl font-bold text-gray-900">A"rdenes</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">Órdenes</h1>
                     <p className="text-gray-500">Busca y gestiona pagos realizados en la plataforma.</p>
                 </div>
             </header>
@@ -92,7 +92,7 @@ export function DirectorOrdersPage() {
                 <section className="bg-white rounded-2xl shadow p-6">
                     <form className="grid grid-cols-1 md:grid-cols-3 gap-4" onSubmit={handleSubmit}>
                         <div>
-                            <label className="text-sm font-medium text-gray-700">A"rden ID</label>
+                            <label className="text-sm font-medium text-gray-700">Órden ID</label>
                             <input
                                 type="text"
                                 value={filters.orderId}
@@ -187,7 +187,7 @@ export function DirectorOrdersPage() {
                     </div>
 
                     {loading ? (
-                        <p className="text-center text-gray-500 py-6">Cargando A"rdenes...</p>
+                        <p className="text-center text-gray-500 py-6">Cargando Órdenes...</p>
                     ) : orders.length === 0 ? (
                         <p className="text-center text-gray-500 py-6">Sin resultados para los filtros seleccionados.</p>
                     ) : (
@@ -195,7 +195,7 @@ export function DirectorOrdersPage() {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">A"rden</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Órden</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Comprador</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Evento</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Total</th>

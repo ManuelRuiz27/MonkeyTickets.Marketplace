@@ -88,6 +88,7 @@ export class AuthService {
 
     private sanitizeUser(user: any) {
         const { password, ...sanitized } = user;
+        void password;
         return sanitized;
     }
 }

@@ -415,4 +415,23 @@ export class TicketsService {
             percentageAttended: totalTickets > 0 ? (event.attendanceCount / totalTickets) * 100 : 0,
         };
     }
+
+    async getStaffEvents(userId: string) {
+        return this.prisma.event.findMany({
+            where: {
+                staff: {
+                    some: { userId },
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                startDate: true,
+                venue: true,
+                address: true,
+                city: true,
+            },
+            orderBy: { startDate: 'asc' },
+        });
+    }
 }

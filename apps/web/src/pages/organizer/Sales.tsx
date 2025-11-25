@@ -85,7 +85,7 @@ export function OrganizerSalesPage() {
 
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white rounded-xl shadow p-6">
-                        <p className="text-sm text-gray-500">A"rdenes</p>
+                        <p className="text-sm text-gray-500">Órdenes</p>
                         <p className="text-3xl font-bold text-gray-900 mt-2">{orders.length}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow p-6">
@@ -101,7 +101,7 @@ export function OrganizerSalesPage() {
                 </section>
 
                 <section className="bg-white rounded-2xl shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">A"rdenes recientes</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Órdenes recientes</h2>
 
                     {loading ? (
                         <div className="py-12 text-center text-gray-500">Cargando ventas...</div>

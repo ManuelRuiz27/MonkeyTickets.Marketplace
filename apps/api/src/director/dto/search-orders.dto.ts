@@ -1,4 +1,3 @@
-import { Type } from 'class-transformer';
 import { IsEmail, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { OrderStatus } from '@prisma/client';
 import { PaginationQueryDto } from './pagination.dto';
