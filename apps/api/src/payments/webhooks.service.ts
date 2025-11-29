@@ -39,9 +39,9 @@ export class PaymentsWebhooksService {
         const eventType = payload.type || payload.action;
         const data = payload.data?.id ? payload.data : payload.resource ?? payload.data ?? {};
         const providerPaymentId = data.id || payload.data?.id;
-        const orderId = data.order?.id || data.metadata?.orderId || payload.order?.id;
+        const orderId = data.order?.id || data.metadata?.orderId || payload.order?.id || payload.external_reference;
 
-        const newStatus = this.mapMercadoPagoStatus(eventType);
+        const newStatus = this.mapMercadoPagoStatus(eventType, payload);
         if (!newStatus) {
             await this.createLegalLog(null, 'MP_WEBHOOK_IGNORED', {
                 payload,
@@ -189,7 +189,16 @@ export class PaymentsWebhooksService {
         return { platformFeeAmount, organizerIncomeAmount };
     }
 
-    private mapMercadoPagoStatus(eventType?: string): PaymentStatus | null {
+    private mapMercadoPagoStatus(eventType?: string, payload?: any): PaymentStatus | null {
+        const status = payload?.data?.status || payload?.status;
+
+        if (status === 'approved') {
+            return PaymentStatus.COMPLETED;
+        }
+        if (status === 'rejected' || status === 'cancelled') {
+            return PaymentStatus.FAILED;
+        }
+
         switch (eventType) {
             case 'payment.approved':
                 return PaymentStatus.COMPLETED;

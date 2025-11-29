@@ -4,6 +4,8 @@ import { EventList } from './pages/marketplace/EventList';
 import { EventDetail } from './pages/marketplace/EventDetail';
 import { Checkout } from './pages/checkout/Checkout';
 import { CheckoutSuccess } from './pages/checkout/CheckoutSuccess';
+import { PaymentPendingSPEI } from './pages/checkout/PaymentPendingSPEI';
+import { PaymentPendingOXXO } from './pages/checkout/PaymentPendingOXXO';
 import { OrganizerLogin } from './pages/organizer/Login';
 import { EventPdfTemplate } from './pages/organizer/EventPdfTemplate';
 import { DirectorLogin } from './pages/director/Login';
@@ -12,6 +14,8 @@ import { OrganizerDashboard } from './pages/organizer/Dashboard';
 import { OrganizerEventsPage } from './pages/organizer/Events';
 import { OrganizerSalesPage } from './pages/organizer/Sales';
 import { OrganizerTemplatesPage } from './pages/organizer/Templates';
+import { CreateEventPage } from './pages/organizer/CreateEvent';
+import { EditEventPage } from './pages/organizer/EditEvent';
 import { DirectorDashboardPage } from './pages/director/Dashboard';
 import { DirectorOrganizersPage } from './pages/director/Organizers';
 import { DirectorFeePlansPage } from './pages/director/FeePlans';
@@ -29,6 +33,8 @@ function App() {
                     <Route path="/events/:eventId" element={<EventDetail />} />
                     <Route path="/checkout/:eventId" element={<Checkout />} />
                     <Route path="/checkout/success" element={<CheckoutSuccess />} />
+                    <Route path="/checkout/pending-spei/:orderId" element={<PaymentPendingSPEI />} />
+                    <Route path="/checkout/pending-oxxo/:orderId" element={<PaymentPendingOXXO />} />
 
                     {/* Organizer Panel */}
                     <Route path="/organizer/login" element={<OrganizerLogin />} />
@@ -45,6 +51,22 @@ function App() {
                         element={
                             <ProtectedRoute roles={['ORGANIZER']} redirectTo="/organizer/login">
                                 <OrganizerEventsPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/organizer/events/create"
+                        element={
+                            <ProtectedRoute roles={['ORGANIZER']} redirectTo="/organizer/login">
+                                <CreateEventPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/organizer/events/:eventId/edit"
+                        element={
+                            <ProtectedRoute roles={['ORGANIZER']} redirectTo="/organizer/login">
+                                <EditEventPage />
                             </ProtectedRoute>
                         }
                     />

@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
+import { EventFiltersComponent, EventFilters } from '../../components/marketplace/EventFilters';
+import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 
 export function EventList() {
     const [events, setEvents] = useState<any[]>([]);
+    const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [filters, setFilters] = useState<EventFilters>({});
 
     useEffect(() => {
         apiClient
             .getEvents()
             .then((data: any) => {
-                setEvents(data.data || data);
+                const eventsList = data.data || data;
+                setEvents(eventsList);
+                setFilteredEvents(eventsList);
                 setLoading(false);
             })
             .catch((error) => {
@@ -18,6 +24,74 @@ export function EventList() {
                 setLoading(false);
             });
     }, []);
+
+    // Apply filters whenever they change
+    useEffect(() => {
+        if (!events.length) {
+            setFilteredEvents([]);
+            return;
+        }
+
+        let result = [...events];
+
+        // Search filter
+        if (filters.search) {
+            const searchLower = filters.search.toLowerCase();
+            result = result.filter((event) =>
+                event.title?.toLowerCase().includes(searchLower) ||
+                event.description?.toLowerCase().includes(searchLower) ||
+                event.venue?.toLowerCase().includes(searchLower)
+            );
+        }
+
+        // Category filter
+        if (filters.category) {
+            result = result.filter((event) => event.category === filters.category);
+        }
+
+        // City filter
+        if (filters.city) {
+            result = result.filter((event) => event.city === filters.city);
+        }
+
+        // Price range filter
+        if (filters.minPrice !== undefined) {
+            result = result.filter((event) => (event.price || 0) >= filters.minPrice!);
+        }
+        if (filters.maxPrice !== undefined) {
+            result = result.filter((event) => (event.price || 0) <= filters.maxPrice!);
+        }
+
+        // Date range filter
+        if (filters.startDate) {
+            result = result.filter((event) =>
+                new Date(event.startDate) >= new Date(filters.startDate!)
+            );
+        }
+        if (filters.endDate) {
+            result = result.filter((event) =>
+                new Date(event.startDate) <= new Date(filters.endDate!)
+            );
+        }
+
+        // Sort
+        if (filters.sortBy === 'price') {
+            result.sort((a, b) => (a.price || 0) - (b.price || 0));
+        } else if (filters.sortBy === 'name') {
+            result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        } else {
+            // Default: sort by date
+            result.sort((a, b) =>
+                new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+            );
+        }
+
+        setFilteredEvents(result);
+    }, [filters, events]);
+
+    const handleFilterChange = (newFilters: EventFilters) => {
+        setFilters(newFilters);
+    };
 
     if (loading) {
         return (
@@ -46,6 +120,11 @@ export function EventList() {
                 </div>
             </div>
 
+            {/* Filters */}
+            <div className="container mx-auto px-4 py-8">
+                <EventFiltersComponent onFilterChange={handleFilterChange} loading={false} />
+            </div>
+
             {/* Events Grid */}
             <div className="container mx-auto px-4 py-12">
                 <div className="flex items-center justify-between mb-8">
@@ -53,13 +132,13 @@ export function EventList() {
                         Próximos Eventos
                     </h2>
                     <div className="text-sm text-gray-600">
-                        {events.length} evento{events.length !== 1 ? 's' : ''} disponible{events.length !== 1 ? 's' : ''}
+                        {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''} disponible{filteredEvents.length !== 1 ? 's' : ''}
                     </div>
                 </div>
 
-                {events.length > 0 ? (
+                {filteredEvents.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {events.map((event) => (
+                        {filteredEvents.map((event) => (
                             <Link
                                 key={event.id}
                                 to={`/events/${event.id}`}
@@ -73,8 +152,15 @@ export function EventList() {
                                                 alt={event.title}
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                             />
-                                            <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold text-primary-600">
-                                                {event.category || 'Evento'}
+                                            <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                                                <div className="bg-white px-3 py-1 rounded-full text-sm font-semibold text-primary-600">
+                                                    {event.category || 'Evento'}
+                                                </div>
+                                                {(event.isUnlisted || !event.isPublic) && (
+                                                    <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold border border-orange-300">
+                                                        🔒 Oculto
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ) : (
@@ -137,6 +223,19 @@ export function EventList() {
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Precio desde */}
+                                        {event.templates && event.templates.length > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                                <div className="flex items-baseline">
+                                                    <span className="text-sm text-gray-500 mr-2">Desde</span>
+                                                    <span className="text-2xl font-bold text-primary-700">
+                                                        ${Math.min(...event.templates.map((t: any) => Number(t.price))).toLocaleString()}
+                                                    </span>
+                                                    <span className="text-sm text-gray-500 ml-1">MXN</span>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="mt-6">
                                             <button className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200 flex items-center justify-center group-hover:shadow-lg">

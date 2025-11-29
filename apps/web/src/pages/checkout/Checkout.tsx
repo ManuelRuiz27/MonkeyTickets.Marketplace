@@ -7,6 +7,28 @@ import CountdownTimer from '../../components/checkout/CountdownTimer';
 import { apiClient } from '../../api/client';
 import { OpenpayCardForm } from '../../features/checkout/components/OpenpayCardForm';
 import { MercadoPagoButton } from '../../features/payments/components/MercadoPagoButton';
+import { SpeiPaymentButton } from '../../features/payments/components/SpeiPaymentButton';
+import { OxxoPaymentButton } from '../../features/payments/components/OxxoPaymentButton';
+
+// Diccionario de errores amigables
+const ERROR_MESSAGES: Record<string, string> = {
+    // OpenPay errors
+    'insufficient_funds': '💳 Fondos insuficientes en tu tarjeta',
+    'card_declined': '❌ Tu banco rechazó la tarjeta. Intenta con otra',
+    'invalid_card': '⚠️ Número de tarjeta inválido',
+    'expired_card': '📅 Tarjeta vencida',
+    'security_code_invalid': '🔒 Código de seguridad incorrecto',
+    'processing_error': '⚙️ Error al procesar el pago. Intenta de nuevo',
+
+    // Generic
+    'network_error': '📡 Error de conexión. Verifica tu internet',
+    'session_expired': '⏱️ Tu sesión expiró. Recarga la página',
+    'default': '⚠️ Ocurrió un error. Por favor intenta de nuevo'
+};
+
+const getErrorMessage = (errorCode: string): string => {
+    return ERROR_MESSAGES[errorCode] || ERROR_MESSAGES.default;
+};
 
 export function Checkout() {
     const { eventId } = useParams();
@@ -56,8 +78,9 @@ export function Checkout() {
         navigate(`/checkout/success?orderId=${checkoutSession.orderId}&status=completed`);
     };
 
-    const handleChargeError = (msg: string) => {
-        setError(msg);
+    const handleChargeError = (errorCode: string, fallbackMsg?: string) => {
+        const friendlyMessage = getErrorMessage(errorCode);
+        setError(fallbackMsg || friendlyMessage);
     };
 
     // Mock event object for summary
@@ -152,12 +175,19 @@ export function Checkout() {
                                         </label>
                                         <div className="mt-1">
                                             <input
-                                                type="text"
+                                                type="tel"
                                                 id="phone"
-                                                {...register('phone', { required: true })}
+                                                placeholder="5512345678"
+                                                {...register('phone', {
+                                                    required: 'Teléfono requerido',
+                                                    pattern: {
+                                                        value: /^\d{10}$/,
+                                                        message: 'Debe ser un teléfono de 10 dígitos'
+                                                    }
+                                                })}
                                                 className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
                                             />
-                                            {errors.phone && <span className="text-red-500 text-xs">Requerido</span>}
+                                            {errors.phone && <span className="text-red-500 text-xs">{(errors.phone as any).message}</span>}
                                         </div>
                                     </div>
 
@@ -206,18 +236,28 @@ export function Checkout() {
                                             />
                                         )}
 
-                                        {(selectedPaymentMethod.id === 'spei' || selectedPaymentMethod.id === 'oxxo') && (
-                                            <div className="text-center py-4">
-                                                <p className="text-gray-600 mb-4">
-                                                    Haz clic en confirmar para generar tu ficha de pago {selectedPaymentMethod.title}.
-                                                </p>
-                                                <button
-                                                    className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700"
-                                                    onClick={() => alert('Implementación pendiente en backend para SPEI/OXXO')}
-                                                >
-                                                    Confirmar Orden
-                                                </button>
-                                            </div>
+                                        {selectedPaymentMethod.id === 'spei' && (
+                                            <SpeiPaymentButton
+                                                orderId={checkoutSession.orderId}
+                                                amount={checkoutSession.total}
+                                                currency="MXN"
+                                                description={`Orden ${checkoutSession.orderId} - ${eventTitle}`}
+                                                customerName={`${getValues('firstName')} ${getValues('lastName')}`}
+                                                customerEmail={getValues('email')}
+                                                customerPhone={getValues('phone')}
+                                            />
+                                        )}
+
+                                        {selectedPaymentMethod.id === 'oxxo' && (
+                                            <OxxoPaymentButton
+                                                orderId={checkoutSession.orderId}
+                                                amount={checkoutSession.total}
+                                                currency="MXN"
+                                                description={`Orden ${checkoutSession.orderId} - ${eventTitle}`}
+                                                customerName={`${getValues('firstName')} ${getValues('lastName')}`}
+                                                customerEmail={getValues('email')}
+                                                daysToExpire={3}
+                                            />
                                         )}
                                     </div>
                                 </div>

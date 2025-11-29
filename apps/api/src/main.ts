@@ -49,7 +49,8 @@ async function bootstrap() {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-organizer-id'],
+        exposedHeaders: ['x-total-count', 'x-page', 'x-per-page'],
     });
 
     // Global validation pipe
@@ -71,6 +72,7 @@ async function bootstrap() {
     logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`🔒 Security: Helmet enabled, CORS configured`);
     logger.info(`🌍 Allowed origins: ${origins.join(', ')}`);
+    console.log('TEST LOG FROM MAIN.TS');
 }
 
 bootstrap();

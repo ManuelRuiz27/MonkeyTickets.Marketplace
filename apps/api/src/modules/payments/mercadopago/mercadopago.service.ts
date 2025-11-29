@@ -3,6 +3,7 @@ import { MercadoPagoConfig, Preference } from 'mercadopago';
 import type { PreferenceRequest } from 'mercadopago/dist/clients/preference/commonTypes';
 import type { PreferenceCreateData } from 'mercadopago/dist/clients/preference/create/types';
 import { PaymentsConfigService } from '../../../payments/payments.config';
+import { logger } from '@monomarket/config';
 
 export interface CreatePreferenceParams {
     orderId: string;
@@ -61,6 +62,10 @@ export class MercadoPagoService {
         if (params.notificationUrl) {
             body.notification_url = params.notificationUrl;
         }
+
+        const accessToken = this.paymentsConfig.getMercadoPagoAccessToken();
+        logger.info(`MercadoPagoService using token: ${accessToken ? accessToken.substring(0, 10) + '...' : 'undefined'}`);
+        logger.info(`MercadoPagoService creating preference with body: ${JSON.stringify(body, null, 2)}`);
 
         const preference = await this.preferenceClient.create({ body } as PreferenceCreateData);
 

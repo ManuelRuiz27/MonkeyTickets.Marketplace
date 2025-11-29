@@ -20,7 +20,7 @@ El sistema funciona como un **Marketplace público** donde organizadores publica
 El organizador puede:
 
 #### Gestión de Eventos
-- Crear evento (nombre, fecha, horario, lugar, capacidad mínima 5 boletos)
+- Crear evento (nombre, fecha, horario, lugar, capacidad mínima 50 boletos)
 - Editar evento
 - Publicar/Despublicar evento
 - Ver listado de eventos

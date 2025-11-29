@@ -1,4 +1,6 @@
 import { Module, Global } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './modules/auth/auth.module';
 import { OrganizerModule } from './modules/organizer/organizer.module';
 import { EventsModule } from './modules/events/events.module';
@@ -9,7 +11,6 @@ import { TemplatesModule } from './modules/templates/templates.module';
 import { DirectorModule } from './modules/director/director.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
-import { ConfigModule } from '@nestjs/config';
 import { EnvValidationService } from './config/env.validation';
 
 @Global()
@@ -19,6 +20,7 @@ import { EnvValidationService } from './config/env.validation';
             isGlobal: true,
             envFilePath: '.env',
         }),
+        ScheduleModule.forRoot(),
         PrismaModule,
         AuthModule,
         OrganizerModule,

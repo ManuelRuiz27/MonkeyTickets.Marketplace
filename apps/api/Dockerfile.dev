@@ -1,7 +1,7 @@
 # Dockerfile para desarrollo del backend con hot reload
 FROM node:20-alpine
 
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 WORKDIR /app
 
@@ -17,8 +17,8 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY apps/api/package.json ./apps/api/
 
-# Instalar dependencias
-RUN pnpm install --frozen-lockfile
+# Instalar dependencias (sin --frozen-lockfile para desarrollo)
+RUN pnpm install
 
 # Copiar el código fuente completo (para que se instalen las deps correctamente)
 COPY packages ./packages

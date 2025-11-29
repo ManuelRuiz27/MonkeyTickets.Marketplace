@@ -9,6 +9,7 @@ import { OrganizerTemplatesController } from './templates/organizer-templates.co
 import { OrganizerTemplatesService } from './templates/organizer-templates.service';
 import { OrganizerOrdersController } from './orders/organizer-orders.controller';
 import { OrganizerOrdersService } from './orders/organizer-orders.service';
+import { OrganizerDashboardController } from './organizer-dashboard.controller';
 
 @Module({
     imports: [PrismaModule, TemplatesModule, OrdersModule, MailModule],
@@ -16,6 +17,7 @@ import { OrganizerOrdersService } from './orders/organizer-orders.service';
         OrganizerEventsController,
         OrganizerTemplatesController,
         OrganizerOrdersController,
+        OrganizerDashboardController,
     ],
     providers: [
         OrganizerEventsService,

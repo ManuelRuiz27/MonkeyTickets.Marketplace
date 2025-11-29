@@ -28,7 +28,7 @@ export class CreateOrganizerEventDto {
     endDate?: string;
 
     @IsInt()
-    @Min(0)
+    @Min(50)
     capacity!: number;
 
     @IsNumber({ maxDecimalPlaces: 2 })

@@ -243,9 +243,74 @@ export class PaymentsWebhooksService {
         const orderId = payload.external_reference;
         if (!orderId) return;
 
-        // Similar a handleChargeSucceeded pero para MP
         this.logger.log(`Pago MercadoPago aprobado para orden ${orderId}`);
-        // Implementación similar a handleChargeSucceeded
+
+        try {
+            await this.prisma.$transaction(async (tx) => {
+                // 1. Actualizar orden
+                await tx.order.update({
+                    where: { id: orderId },
+                    data: {
+                        status: 'PAID',
+                        paidAt: new Date(),
+                    },
+                });
+
+                // 2. Actualizar payment
+                await tx.payment.updateMany({
+                    where: { orderId },
+                    data: {
+                        status: 'COMPLETED',
+                        gatewayTransactionId: String(payload.data?.id),
+                    },
+                });
+
+                // 3. Generar tickets
+                const order = await tx.order.findUnique({
+                    where: { id: orderId },
+                    include: { items: true },
+                });
+
+                if (order) {
+                    for (const item of order.items) {
+                        for (let i = 0; i < item.quantity; i++) {
+                            const qrCode = this.generateUniqueQR();
+                            await tx.ticket.create({
+                                data: {
+                                    orderId: order.id,
+                                    templateId: item.templateId,
+                                    qrCode,
+                                    status: 'VALID',
+                                },
+                            });
+                        }
+
+                        // Actualizar sold count del template
+                        await tx.ticketTemplate.update({
+                            where: { id: item.templateId },
+                            data: {
+                                sold: {
+                                    increment: item.quantity,
+                                },
+                            },
+                        });
+                    }
+                }
+            });
+
+            this.logger.log(`Orden ${orderId} marcada como PAID y tickets generados (MercadoPago)`);
+
+            // 4. Enviar tickets por email
+            try {
+                await this.emailService.sendTicketsEmail(orderId);
+            } catch (emailError: any) {
+                this.logger.error(`Error enviando tickets por email: ${emailError.message}`);
+            }
+
+        } catch (error: any) {
+            this.logger.error(`Error procesando pago MercadoPago: ${error.message}`);
+            throw error;
+        }
     }
 
     /**

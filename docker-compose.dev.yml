@@ -19,6 +19,15 @@ services:
     networks:
       - monomarket-dev
 
+  redis:
+    image: redis:alpine
+    container_name: monomarket-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - monomarket-dev
+
   api:
     build:
       context: .
@@ -34,8 +43,8 @@ services:
       OPENPAY_PRIVATE_KEY: ${OPENPAY_PRIVATE_KEY:-dev_openpay_private}
       OPENPAY_PUBLIC_KEY: ${OPENPAY_PUBLIC_KEY:-dev_openpay_public}
       OPENPAY_PRODUCTION: ${OPENPAY_PRODUCTION:-false}
-      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-TEST-ACCESS-TOKEN}
-      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-TEST-PUBLIC-KEY}
+      MP_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-TEST-ACCESS-TOKEN}
+      MP_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY:-TEST-PUBLIC-KEY}
       MP_INTEGRATOR_ID: ${MP_INTEGRATOR_ID:-DEV_INTEGRATOR}
     depends_on:
       postgres:
