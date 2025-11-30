@@ -14,13 +14,7 @@ export class MercadoPagoController {
         try {
             return await this.mercadoPagoService.createPreference({
                 orderId: dto.orderId,
-                title: dto.title,
-                description: dto.description,
-                quantity: dto.quantity,
-                unitPrice: dto.unitPrice,
-                currency: dto.currency,
                 notificationUrl: dto.notificationUrl,
-                payer: dto.payer,
             });
         } catch (error) {
             console.error('Error creating Mercado Pago preference:', error);

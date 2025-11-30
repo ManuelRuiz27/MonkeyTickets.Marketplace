@@ -1,4 +1,8 @@
-const SDK_URL = 'https://sdk.mercadopago.com/js/v2';
+ï»¿const SDK_URL = 'https://sdk.mercadopago.com/js/v2';
+
+export type WalletBrickController = {
+    destroy: () => void;
+};
 
 type MercadoPagoInstance = {
     bricks(): {
@@ -6,7 +10,7 @@ type MercadoPagoInstance = {
             name: 'wallet',
             containerId: string,
             options: { initialization: { preferenceId: string } },
-        ) => Promise<void>;
+        ) => Promise<WalletBrickController>;
     };
 };
 
@@ -22,7 +26,7 @@ let scriptPromise: Promise<void> | null = null;
 
 function loadSdk(): Promise<void> {
     if (typeof window === 'undefined') {
-        return Promise.reject(new Error('Mercado Pago SDK no está disponible en SSR'));
+        return Promise.reject(new Error('Mercado Pago SDK no estÃ¡ disponible en SSR'));
     }
 
     if (window.MercadoPago) {
@@ -57,10 +61,9 @@ export async function getMercadoPagoInstance(): Promise<MercadoPagoInstance> {
     await loadSdk();
 
     if (!window.MercadoPago) {
-        throw new Error('Mercado Pago no se inicializó correctamente');
+        throw new Error('Mercado Pago no se inicializÃ³ correctamente');
     }
 
-    // Las llaves públicas de Mercado Pago solo se consumen desde el frontend usando VITE_MP_PUBLIC_KEY.
     const locale = import.meta.env.VITE_MP_LOCALE ?? 'es-MX';
     return new window.MercadoPago(import.meta.env.VITE_MP_PUBLIC_KEY, { locale });
 }

@@ -27,6 +27,14 @@ export class PaymentsConfigService {
         return getEnvVar('MERCADOPAGO_WEBHOOK_SECRET', process.env.MP_WEBHOOK_SECRET);
     }
 
+    getApiBaseUrl(): string {
+        return getEnvVar('API_URL', process.env.API_URL);
+    }
+
+    getFrontendBaseUrl(): string {
+        return getEnvVar('FRONTEND_URL', process.env.FRONTEND_URL);
+    }
+
     getOpenpayMerchantId(): string {
         return getEnvVar('OPENPAY_MERCHANT_ID', process.env.OPENPAY_MERCHANT_ID);
     }

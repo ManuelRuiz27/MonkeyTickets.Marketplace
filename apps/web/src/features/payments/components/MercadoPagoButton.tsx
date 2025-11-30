@@ -1,6 +1,6 @@
-import { useId, useRef, useState } from 'react';
+﻿import { useId, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../../../api/client';
-import { getMercadoPagoInstance } from '../../../lib/mercadoPago';
+import { getMercadoPagoInstance, WalletBrickController } from '../../../lib/mercadoPago';
 
 type Props = {
     orderId: string;
@@ -24,8 +24,9 @@ export function MercadoPagoButton({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [walletReady, setWalletReady] = useState(false);
-    const walletContainerId = useId();
-    const bricksController = useRef<{ destroy?: () => void } | null>(null);
+    const reactId = useId();
+    const walletContainerId = useMemo(() => `mp-wallet-${reactId.replace(/[:]/g, '')}`, [reactId]);
+    const bricksController = useRef<WalletBrickController | null>(null);
 
     const handleClick = async () => {
         setError(null);
@@ -44,32 +45,33 @@ export function MercadoPagoButton({
                 },
             });
 
-            if (preference.initPoint) {
-                window.location.href = preference.initPoint;
-                return;
-            }
-
             const preferenceId = preference.preferenceId;
+
             if (!preferenceId) {
+                if (preference.initPoint) {
+                    window.location.href = preference.initPoint;
+                    return;
+                }
                 throw new Error('No se pudo generar la preferencia de pago.');
             }
 
             const mp = await getMercadoPagoInstance();
             const bricks = mp.bricks();
 
-            if (walletReady && typeof bricksController.current?.destroy === 'function') {
-                bricksController.current?.destroy();
+            if (bricksController.current) {
+                bricksController.current.destroy();
             }
 
-            await bricks.create('wallet', walletContainerId, {
+            const controller = await bricks.create('wallet', walletContainerId, {
                 initialization: {
                     preferenceId,
                 },
             });
 
+            bricksController.current = controller;
             setWalletReady(true);
         } catch (err: any) {
-            const message = err?.message || 'No pudimos iniciar Mercado Pago. Intentalo mas tarde.';
+            const message = err?.message || 'No pudimos iniciar Mercado Pago. Intenta más tarde.';
             setError(message);
         } finally {
             setLoading(false);

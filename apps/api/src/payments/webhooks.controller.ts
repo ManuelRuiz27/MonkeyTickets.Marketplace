@@ -14,13 +14,13 @@ export class PaymentsWebhooksController {
             action: payload?.action,
             resourceId: payload?.data?.id,
         }, 'Mercado Pago webhook recibido');
-        // TODO: Buscar el pago por data.id, marcar la orden como pagada y evitar re-procesos.
 
         const signature =
             headers['x-mp-signature'] ||
             headers['x-mercadopago-signature'] ||
             headers['x-signature'];
-        await this.webhooksService.handleMercadoPagoWebhook(payload, signature);
+        const requestId = headers['x-request-id'];
+        await this.webhooksService.handleMercadoPagoWebhook(payload, signature, requestId);
         return { received: true };
     }
 }

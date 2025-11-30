@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+﻿import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
@@ -16,15 +16,9 @@ vi.mock('../../api/client', () => ({
 vi.mock('../../lib/mercadoPago', () => ({
     getMercadoPagoInstance: vi.fn().mockResolvedValue({
         bricks: () => ({
-            create: vi.fn().mockResolvedValue(undefined),
+            create: vi.fn().mockResolvedValue({ destroy: vi.fn() }),
         }),
     }),
-}));
-
-vi.mock('../../features/checkout/components/OpenpayCardForm', () => ({
-    OpenpayCardForm: ({ onSuccess }: { onSuccess: (response: any) => void }) => (
-        <button onClick={() => onSuccess({ id: 'charge-1', status: 'completed' })}>Simular pago</button>
-    ),
 }));
 
 const mockedClient = apiClient as unknown as {
@@ -60,12 +54,16 @@ describe('Checkout page', () => {
         vi.clearAllMocks();
     });
 
-    it('crea la sesión y redirige tras simular un pago', async () => {
+    it('crea la sesión y solicita la preferencia de Mercado Pago', async () => {
         mockedClient.createCheckoutSession.mockResolvedValue({
             orderId: 'order-xyz',
             total: 200,
             currency: 'MXN',
             expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
+        mockedClient.createMercadoPagoPreference.mockResolvedValue({
+            preferenceId: 'pref-123',
+            initPoint: '',
         });
 
         renderCheckout();
@@ -74,7 +72,7 @@ describe('Checkout page', () => {
         await userEvent.type(screen.getByPlaceholderText('juan@ejemplo.com'), 'buyer@example.com');
         await userEvent.type(screen.getByPlaceholderText('5512345678'), '5512345678');
 
-        await userEvent.click(screen.getByRole('button', { name: /Continuar con el pago/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Continuar al Pago/i }));
 
         await waitFor(() => {
             expect(mockedClient.createCheckoutSession).toHaveBeenCalledWith(
@@ -85,9 +83,13 @@ describe('Checkout page', () => {
             );
         });
 
-        await screen.findByRole('button', { name: /Simular pago/i });
-        await userEvent.click(screen.getByRole('button', { name: /Simular pago/i }));
+        const mpButton = await screen.findByRole('button', { name: /Pagar con Mercado Pago/i });
+        await userEvent.click(mpButton);
 
-        await screen.findByText(/Compra completada/i);
+        await waitFor(() => {
+            expect(mockedClient.createMercadoPagoPreference).toHaveBeenCalledWith(
+                expect.objectContaining({ orderId: 'order-xyz' }),
+            );
+        });
     });
 });

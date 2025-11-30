@@ -1,11 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { RadioGroup } from '@headlessui/react';
 
 export const PAYMENT_METHODS = [
-    { id: 'card', title: 'Tarjeta de Crédito/Débito', description: 'Visa, Mastercard, Amex (OpenPay)' },
     { id: 'mercadopago', title: 'Mercado Pago', description: 'Paga con tu cuenta de Mercado Pago' },
-    { id: 'spei', title: 'Transferencia SPEI', description: 'Transferencia bancaria' },
-    { id: 'oxxo', title: 'OXXO Pay', description: 'Pago en efectivo en tiendas OXXO' },
+    // Openpay (tarjeta/SPEI/OXXO) deshabilitado temporalmente; reactivar aquí cuando se requiera.
 ];
 
 interface PaymentMethodsProps {

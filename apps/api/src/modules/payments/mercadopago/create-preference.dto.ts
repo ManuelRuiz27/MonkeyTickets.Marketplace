@@ -28,25 +28,29 @@ export class CreateMercadoPagoPreferenceDto {
     @IsNotEmpty()
     orderId!: string;
 
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
-    title!: string;
+    title?: string;
 
     @IsOptional()
     @IsString()
     description?: string;
 
+    @IsOptional()
     @IsInt()
     @Min(1)
-    quantity!: number;
+    quantity?: number;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    unitPrice!: number;
+    unitPrice?: number;
 
+    @IsOptional()
     @IsString()
     @IsIn(['MXN'])
-    currency!: 'MXN';
+    currency?: 'MXN';
 
     @IsOptional()
     @IsUrl({
@@ -54,7 +58,8 @@ export class CreateMercadoPagoPreferenceDto {
     })
     notificationUrl?: string;
 
+    @IsOptional()
     @ValidateNested()
     @Type(() => MercadoPagoPayerDto)
-    payer!: MercadoPagoPayerDto;
+    payer?: MercadoPagoPayerDto;
 }

@@ -1,34 +1,11 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import CheckoutSummary from '../../components/checkout/CheckoutSummary';
 import PaymentMethods, { PAYMENT_METHODS } from '../../components/checkout/PaymentMethods';
 import CountdownTimer from '../../components/checkout/CountdownTimer';
 import { apiClient } from '../../api/client';
-import { OpenpayCardForm } from '../../features/checkout/components/OpenpayCardForm';
 import { MercadoPagoButton } from '../../features/payments/components/MercadoPagoButton';
-import { SpeiPaymentButton } from '../../features/payments/components/SpeiPaymentButton';
-import { OxxoPaymentButton } from '../../features/payments/components/OxxoPaymentButton';
-
-// Diccionario de errores amigables
-const ERROR_MESSAGES: Record<string, string> = {
-    // OpenPay errors
-    'insufficient_funds': '💳 Fondos insuficientes en tu tarjeta',
-    'card_declined': '❌ Tu banco rechazó la tarjeta. Intenta con otra',
-    'invalid_card': '⚠️ Número de tarjeta inválido',
-    'expired_card': '📅 Tarjeta vencida',
-    'security_code_invalid': '🔒 Código de seguridad incorrecto',
-    'processing_error': '⚙️ Error al procesar el pago. Intenta de nuevo',
-
-    // Generic
-    'network_error': '📡 Error de conexión. Verifica tu internet',
-    'session_expired': '⏱️ Tu sesión expiró. Recarga la página',
-    'default': '⚠️ Ocurrió un error. Por favor intenta de nuevo'
-};
-
-const getErrorMessage = (errorCode: string): string => {
-    return ERROR_MESSAGES[errorCode] || ERROR_MESSAGES.default;
-};
 
 export function Checkout() {
     const { eventId } = useParams();
@@ -74,27 +51,17 @@ export function Checkout() {
         navigate(`/events/${eventId}`);
     };
 
-    const handleChargeSuccess = (_charge: any) => {
-        navigate(`/checkout/success?orderId=${checkoutSession.orderId}&status=completed`);
-    };
-
-    const handleChargeError = (errorCode: string, fallbackMsg?: string) => {
-        const friendlyMessage = getErrorMessage(errorCode);
-        setError(fallbackMsg || friendlyMessage);
-    };
-
-    // Mock event object for summary
     const eventSummary = {
         title: eventTitle || 'Evento',
         date: eventDate ? new Date(eventDate) : new Date(),
         venue: eventVenue || 'Lugar por confirmar',
     };
 
-    const ticketsSummary = [{
+    const ticketsSummary = useMemo(() => ([{
         name: templateName || 'Boleto',
         price: Number(price) || 0,
-        quantity: Number(quantity) || 1
-    }];
+        quantity: Number(quantity) || 1,
+    }]), [templateName, price, quantity]);
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">
@@ -207,23 +174,6 @@ export function Checkout() {
                                     <PaymentMethods selected={selectedPaymentMethod} onChange={setSelectedPaymentMethod} />
 
                                     <div className="mt-6 p-4 border rounded-md bg-gray-50">
-                                        {selectedPaymentMethod.id === 'card' && (
-                                            <OpenpayCardForm
-                                                amount={checkoutSession.total}
-                                                currency="MXN"
-                                                description={`Orden ${checkoutSession.orderId}`}
-                                                orderId={checkoutSession.orderId}
-                                                customer={{
-                                                    name: getValues('firstName'),
-                                                    lastName: getValues('lastName'),
-                                                    email: getValues('email'),
-                                                    phone: getValues('phone'),
-                                                }}
-                                                onSuccess={handleChargeSuccess}
-                                                onError={handleChargeError}
-                                            />
-                                        )}
-
                                         {selectedPaymentMethod.id === 'mercadopago' && (
                                             <MercadoPagoButton
                                                 orderId={checkoutSession.orderId}
@@ -235,30 +185,7 @@ export function Checkout() {
                                                 payerEmail={getValues('email')}
                                             />
                                         )}
-
-                                        {selectedPaymentMethod.id === 'spei' && (
-                                            <SpeiPaymentButton
-                                                orderId={checkoutSession.orderId}
-                                                amount={checkoutSession.total}
-                                                currency="MXN"
-                                                description={`Orden ${checkoutSession.orderId} - ${eventTitle}`}
-                                                customerName={`${getValues('firstName')} ${getValues('lastName')}`}
-                                                customerEmail={getValues('email')}
-                                                customerPhone={getValues('phone')}
-                                            />
-                                        )}
-
-                                        {selectedPaymentMethod.id === 'oxxo' && (
-                                            <OxxoPaymentButton
-                                                orderId={checkoutSession.orderId}
-                                                amount={checkoutSession.total}
-                                                currency="MXN"
-                                                description={`Orden ${checkoutSession.orderId} - ${eventTitle}`}
-                                                customerName={`${getValues('firstName')} ${getValues('lastName')}`}
-                                                customerEmail={getValues('email')}
-                                                daysToExpire={3}
-                                            />
-                                        )}
+                                        {/* Openpay (card/SPEI/OXXO) quedó comentado para limitar el front a Mercado Pago. */}
                                     </div>
                                 </div>
                             )}

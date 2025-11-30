@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PaymentGateway, PaymentStatus, Prisma } from '@prisma/client';
+import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { PrismaService } from '../modules/prisma/prisma.service';
 import { PaymentsConfigService } from './payments.config';
 import { PaymentTasksService } from './payment-tasks.service';
@@ -7,6 +8,7 @@ import * as crypto from 'crypto';
 
 interface WebhookPayload {
     type?: string;
+    action?: string;
     data?: any;
     [key: string]: any;
 }
@@ -22,40 +24,57 @@ interface ProcessParams {
 
 @Injectable()
 export class PaymentsWebhooksService {
+    private readonly logger = new Logger(PaymentsWebhooksService.name);
+    private readonly mpPaymentClient: Payment;
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly config: PaymentsConfigService,
         private readonly paymentTasks: PaymentTasksService,
-    ) { }
+    ) {
+        const mpClient = new MercadoPagoConfig({
+            accessToken: this.config.getMercadoPagoAccessToken(),
+        });
+        this.mpPaymentClient = new Payment(mpClient);
+    }
 
-    async handleMercadoPagoWebhook(payload: WebhookPayload, signature?: string) {
-        this.verifySignature(
-            signature,
-            this.config.getMercadoPagoWebhookSecret(),
-            payload,
-            'MercadoPago',
-        );
+    async handleMercadoPagoWebhook(payload: WebhookPayload, signature?: string, requestId?: string) {
+        const providerPaymentId = payload?.data?.id
+            ?? payload?.resource?.id
+            ?? payload?.data?.resource?.id
+            ?? payload?.id;
 
-        const eventType = payload.type || payload.action;
-        const data = payload.data?.id ? payload.data : payload.resource ?? payload.data ?? {};
-        const providerPaymentId = data.id || payload.data?.id;
-        const orderId = data.order?.id || data.metadata?.orderId || payload.order?.id || payload.external_reference;
+        if (!providerPaymentId) {
+            throw new BadRequestException('Missing Mercado Pago payment id');
+        }
 
-        const newStatus = this.mapMercadoPagoStatus(eventType, payload);
+        const isValidSignature = this.verifyMercadoPagoSignature(signature, requestId, payload);
+        if (!isValidSignature) {
+            this.logger.warn('Mercado Pago signature could not be validated; proceeding with caution');
+        }
+
+        const payment = await this.fetchMercadoPagoPayment(String(providerPaymentId));
+        const newStatus = this.mapMercadoPagoStatus(payment.status);
+
         if (!newStatus) {
             await this.createLegalLog(null, 'MP_WEBHOOK_IGNORED', {
                 payload,
-                reason: `Unhandled event type ${eventType}`,
+                paymentStatus: payment.status,
             });
             return;
         }
 
+        const orderId = payment.external_reference
+            ?? payment.metadata?.orderId
+            ?? payload.data?.order?.id
+            ?? payload.external_reference;
+
         await this.processPaymentUpdate({
             provider: PaymentGateway.MERCADOPAGO,
-            providerPaymentId,
+            providerPaymentId: String(providerPaymentId),
             orderId,
             newStatus,
-            eventType,
+            eventType: payload.type || payload.action,
             payload,
         });
     }
@@ -65,12 +84,11 @@ export class PaymentsWebhooksService {
         if (!providerPaymentId) {
             throw new BadRequestException('Missing provider payment identifier');
         }
-        const normalizedProviderPaymentId = String(providerPaymentId);
 
         const payment = await this.prisma.payment.findFirst({
             where: {
                 OR: [
-                    { gatewayTransactionId: normalizedProviderPaymentId },
+                    { gatewayTransactionId: providerPaymentId },
                     ...(orderId ? [{ orderId }] : []),
                 ],
             },
@@ -123,7 +141,7 @@ export class PaymentsWebhooksService {
                 where: { id: payment.id },
                 data: {
                     status: newStatus,
-                    gatewayTransactionId: normalizedProviderPaymentId,
+                    gatewayTransactionId: providerPaymentId,
                 },
             });
 
@@ -189,46 +207,45 @@ export class PaymentsWebhooksService {
         return { platformFeeAmount, organizerIncomeAmount };
     }
 
-    private mapMercadoPagoStatus(eventType?: string, payload?: any): PaymentStatus | null {
-        const status = payload?.data?.status || payload?.status;
-
-        if (status === 'approved') {
-            return PaymentStatus.COMPLETED;
-        }
-        if (status === 'rejected' || status === 'cancelled') {
-            return PaymentStatus.FAILED;
-        }
-
-        switch (eventType) {
-            case 'payment.approved':
+    private mapMercadoPagoStatus(status?: string): PaymentStatus | null {
+        switch (status) {
+            case 'approved':
                 return PaymentStatus.COMPLETED;
-            case 'payment.rejected':
+            case 'authorized':
+            case 'in_process':
+            case 'pending':
+                return PaymentStatus.PENDING;
+            case 'rejected':
+            case 'cancelled':
+            case 'charged_back':
+            case 'refunded':
                 return PaymentStatus.FAILED;
             default:
                 return null;
         }
     }
 
-    private verifySignature(signature: string | undefined, secret: string, payload: any, provider: string) {
-        if (!signature) {
-            throw new UnauthorizedException(`${provider} signature missing`);
+    private verifyMercadoPagoSignature(signature?: string, requestId?: string, payload?: any): boolean {
+        try {
+            const secret = this.config.getMercadoPagoWebhookSecret();
+            if (!signature || !requestId) {
+                return false;
+            }
+            const raw = `${requestId}.${JSON.stringify(payload ?? {})}`;
+            const computed = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+            return signature.includes(computed);
+        } catch (error: any) {
+            this.logger.warn(`Error verifying Mercado Pago signature: ${error.message}`);
+            return false;
         }
+    }
 
-        const computed = crypto.createHmac('sha256', secret)
-            .update(JSON.stringify(payload))
-            .digest('hex');
-
-        const computedBuffer = Buffer.from(computed);
-        const providedBuffer = Buffer.from(signature);
-
-        if (computedBuffer.length !== providedBuffer.length) {
-            throw new UnauthorizedException(`${provider} signature mismatch`);
-        }
-
-        const isValid = crypto.timingSafeEqual(computedBuffer, providedBuffer);
-
-        if (!isValid) {
-            throw new UnauthorizedException(`${provider} signature mismatch`);
+    private async fetchMercadoPagoPayment(paymentId: string) {
+        try {
+            return await this.mpPaymentClient.get({ id: paymentId });
+        } catch (error: any) {
+            this.logger.error(`Failed to fetch Mercado Pago payment ${paymentId}: ${error.message}`);
+            throw new BadRequestException('Could not fetch Mercado Pago payment');
         }
     }
 

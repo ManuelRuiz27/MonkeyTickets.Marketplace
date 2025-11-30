@@ -32,4 +32,4 @@ WORKDIR /app/apps/api
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "cd /app/packages/contracts && pnpm run generate && pnpm run build && cd /app/packages/config && pnpm run build && cd /app/apps/api && pnpm run prisma:generate && pnpm run prisma:migrate:deploy && pnpm run dev"]
+CMD ["sh", "-c", "cd /app/packages/contracts && pnpm run generate && pnpm run build && cd /app/packages/config && pnpm run build && cd /app/apps/api && pnpm run prisma:generate && pnpm run dev"]
