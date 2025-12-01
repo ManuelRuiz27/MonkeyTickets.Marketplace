@@ -1,3 +1,6 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
 /**
  * Cloudflare Workers Environment
  * Defines bindings for D1, KV, R2, and environment variables
@@ -191,10 +194,103 @@ async function getEventById(env: Env, eventId: string): Promise<Response> {
 }
 
 /**
+ * Register a new user and organizer
+ */
+async function register(request: Request, env: Env): Promise<Response> {
+    try {
+        const body = await request.json() as any;
+        const { email, password, name, businessName } = body;
+
+        if (!email || !password || !name || !businessName) {
+            return errorResponse('Missing required fields: email, password, name, businessName', 400);
+        }
+
+        // Check if user exists
+        const existingUser = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+        if (existingUser) {
+            return errorResponse('User already exists', 409);
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const userId = crypto.randomUUID();
+        const organizerId = crypto.randomUUID();
+
+        // Transaction to create user and organizer
+        await env.DB.batch([
+            env.DB.prepare('INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)')
+                .bind(userId, email, hashedPassword, name, 'ORGANIZER'),
+            env.DB.prepare('INSERT INTO organizers (id, user_id, business_name, status) VALUES (?, ?, ?, ?)')
+                .bind(organizerId, userId, businessName, 'ACTIVE')
+        ]);
+
+        const token = jwt.sign({ sub: userId, email, role: 'ORGANIZER', organizerId }, env.JWT_SECRET, { expiresIn: '7d' });
+
+        return jsonResponse({
+            user: { id: userId, email, name, role: 'ORGANIZER', organizer: { id: organizerId } },
+            token
+        });
+    } catch (error: any) {
+        console.error('Registration error:', error);
+        return errorResponse('Registration failed: ' + error.message);
+    }
+}
+
+/**
+ * Login user
+ */
+async function login(request: Request, env: Env): Promise<Response> {
+    try {
+        const body = await request.json() as any;
+        const { email, password } = body;
+
+        if (!email || !password) {
+            return errorResponse('Missing email or password', 400);
+        }
+
+        const user = await env.DB.prepare(`
+            SELECT u.*, o.id as organizer_id 
+            FROM users u 
+            LEFT JOIN organizers o ON u.id = o.user_id 
+            WHERE u.email = ?
+        `).bind(email).first();
+
+        if (!user) {
+            return errorResponse('Invalid credentials', 401);
+        }
+
+        const valid = await bcrypt.compare(password, user.password as string);
+        if (!valid) {
+            return errorResponse('Invalid credentials', 401);
+        }
+
+        const token = jwt.sign({
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+            organizerId: user.organizer_id
+        }, env.JWT_SECRET, { expiresIn: '7d' });
+
+        return jsonResponse({
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                organizer: user.organizer_id ? { id: user.organizer_id } : null
+            },
+            token
+        });
+    } catch (error: any) {
+        console.error('Login error:', error);
+        return errorResponse('Login failed: ' + error.message);
+    }
+}
+
+/**
  * Main Worker fetch handler
  */
 export default {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
         const url = new URL(request.url);
         const path = url.pathname;
 
@@ -210,6 +306,15 @@ export default {
                 timestamp: new Date().toISOString(),
                 worker: 'monomarket-api'
             });
+        }
+
+        // Auth endpoints
+        if (path === '/api/auth/register' && request.method === 'POST') {
+            return register(request, env);
+        }
+
+        if (path === '/api/auth/login' && request.method === 'POST') {
+            return login(request, env);
         }
 
         // Events list endpoint
