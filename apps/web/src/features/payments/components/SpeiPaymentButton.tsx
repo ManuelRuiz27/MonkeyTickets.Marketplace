@@ -30,31 +30,14 @@ export function SpeiPaymentButton({
         setLoading(true);
 
         try {
-            const response = await apiClient.request<{
-                id: string;
-                amount: number;
-                currency: string;
-                status: string;
-                creationDate: string;
-                orderId: string;
-                paymentMethod: {
-                    type: string;
-                    bank: string;
-                    clabe: string;
-                    agreement?: string;
-                };
-                expiresAt: string;
-            }>('/payments/openpay/spei', {
-                method: 'POST',
-                body: JSON.stringify({
-                    orderId,
-                    amount,
-                    currency,
-                    description,
-                    customerName,
-                    customerEmail,
-                    customerPhone,
-                }),
+            const response = await apiClient.createOpenpaySpeiCharge({
+                orderId,
+                amount,
+                currency,
+                description,
+                customerName,
+                customerEmail,
+                customerPhone,
             });
 
             // Redirigir a página de instrucciones SPEI

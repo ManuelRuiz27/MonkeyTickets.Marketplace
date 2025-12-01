@@ -1,0 +1,23 @@
+name = "monomarket-api"
+main = "src/index.ts"
+compatibility_date = "2025-11-30"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "monomarket_dev"
+database_id = "22c9bd0e-0229-4e1c-8900-4feb60c6f587"
+
+# KV Namespace
+[[kv_namespaces]]
+binding = "CACHE"
+id = "e1f5bd72d4034125ac3e133c0df77ea6"
+
+# R2 Bucket
+# [[r2_buckets]]
+# binding = "ASSETS"
+# bucket_name = "monomarket-assets"
+
+# Environment Variables
+[vars]
+JWT_SECRET = "change_this_in_production_to_a_secure_random_string"

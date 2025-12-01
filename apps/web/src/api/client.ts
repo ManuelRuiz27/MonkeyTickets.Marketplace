@@ -245,6 +245,20 @@ class ApiClient {
         });
     }
 
+    public async createOpenpaySpeiCharge(body: any) {
+        return this.request<any>('/payments/openpay/spei', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    public async createOpenpayOxxoCharge(body: any) {
+        return this.request<any>('/payments/openpay/oxxo', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
     // Organizer - events
     public async getOrganizerEvents() {
         return this.request<ApiEvent[]>('/organizer/events', {}, { organizerScope: true });

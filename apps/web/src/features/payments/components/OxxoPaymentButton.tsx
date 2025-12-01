@@ -30,30 +30,14 @@ export function OxxoPaymentButton({
         setLoading(true);
 
         try {
-            const response = await apiClient.request<{
-                id: string;
-                amount: number;
-                currency: string;
-                status: string;
-                creationDate: string;
-                orderId: string;
-                paymentMethod: {
-                    type: string;
-                    reference: string;
-                    barcodeUrl: string;
-                };
-                expiresAt: string;
-            }>('/payments/openpay/oxxo', {
-                method: 'POST',
-                body: JSON.stringify({
-                    orderId,
-                    amount,
-                    currency,
-                    description,
-                    customerName,
-                    customerEmail,
-                    daysToExpire,
-                }),
+            const response = await apiClient.createOpenpayOxxoCharge({
+                orderId,
+                amount,
+                currency,
+                description,
+                customerName,
+                customerEmail,
+                daysToExpire,
             });
 
             // Redirigir a página de instrucciones OXXO

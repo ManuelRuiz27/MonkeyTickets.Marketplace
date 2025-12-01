@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { EventFiltersComponent, EventFilters } from '../../components/marketplace/EventFilters';
-import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
+
 
 export function EventList() {
     const [events, setEvents] = useState<any[]>([]);
@@ -13,8 +13,8 @@ export function EventList() {
     useEffect(() => {
         apiClient
             .getEvents()
-            .then((data: any) => {
-                const eventsList = data.data || data;
+            .then((response) => {
+                const eventsList = response.data || [];
                 setEvents(eventsList);
                 setFilteredEvents(eventsList);
                 setLoading(false);

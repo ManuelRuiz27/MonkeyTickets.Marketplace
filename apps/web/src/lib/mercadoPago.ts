@@ -37,7 +37,7 @@ type MercadoPagoBricks = {
             callbacks: {
                 onReady?: () => void;
                 onError?: (error: unknown) => void;
-                onSubmit: (event: CardPaymentOnSubmitEvent) => Promise<void>;
+                onSubmit: (event: CardPaymentOnSubmitEvent) => Promise<void | unknown>;
             };
             customization?: Record<string, unknown>;
         },

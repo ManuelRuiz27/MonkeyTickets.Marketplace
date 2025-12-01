@@ -1,5 +1,5 @@
 {
-  "name": "scanner",
+  "name": "@monomarket/scanner",
   "private": true,
   "version": "1.0.0",
   "type": "module",

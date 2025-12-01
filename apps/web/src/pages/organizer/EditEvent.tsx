@@ -25,8 +25,11 @@ export function EditEventPage() {
         }
     }, [eventId, navigate, toast]);
 
+    const rawUser = localStorage.getItem('authUser');
+    const user = rawUser ? JSON.parse(rawUser) : undefined;
+
     return (
-        <DashboardLayout type="organizer" user={{ email: localStorage.getItem('authUser') || undefined }}>
+        <DashboardLayout type="organizer" user={user}>
             <div className="max-w-4xl mx-auto">
                 <div className="mb-6">
                     <h1 className="text-3xl font-bold text-gray-900">Editar Evento</h1>

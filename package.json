@@ -26,7 +26,10 @@
     "docker:prod": "docker-compose up",
     "docker:prod:build": "docker-compose up --build",
     "docker:prod:down": "docker-compose down",
-    "docker:clean": "docker-compose down -v && docker system prune -f"
+    "docker:clean": "docker-compose down -v && docker system prune -f",
+    "worker:dev": "pnpm --filter @monomarket/api-worker run dev",
+    "worker:deploy": "pnpm --filter @monomarket/api-worker run deploy",
+    "worker:tail": "pnpm --filter @monomarket/api-worker run tail"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.21.0",
@@ -37,7 +40,8 @@
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "prettier": "^3.2.5",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "wrangler": "^3.80.0"
   },
   "engines": {
     "node": ">=20.0.0",
