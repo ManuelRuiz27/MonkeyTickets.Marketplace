@@ -79,7 +79,7 @@ cp apps/web/.env.example apps/web/.env
 2. **Mercado Pago Checkout Pro**: el frontend pide una preferencia al backend (`POST /payments/mercadopago/preference`) usando la llave pública (`VITE_MP_PUBLIC_KEY`) y genera el botón/Wallet Brick. El backend firma la preferencia con `MP_ACCESS_TOKEN` y opcionalmente `MP_INTEGRATOR_ID`.
 3. **Webhooks**: `POST /webhooks/mercadopago` registra el evento (por ahora sólo se loguea `type/action/data.id`).
 
-## Deploy API en Vercel
+## Deploy API en Vercel
 
 El archivo 
 ercel.json deja listo el backend para ejecutarse como Function de Node.js 20. Durante el build se compilan los paquetes compartidos, se aplican las migraciones (prisma migrate deploy) contra la base de datos de Neon y se genera pps/api/dist/vercel.js, que es el handler que expone todo el servidor NestJS dentro de la lambda.
@@ -101,13 +101,33 @@ ercel.json:
 4. Despliega con 
 ercel --prod o desde la UI. Todas las rutas (/(.*)) se redirigen al handler de NestJS, as? que este proyecto de Vercel queda dedicado ?nicamente al backend; los frontends deben residir en proyectos separados.
 
-El handler serverless (pps/api/src/vercel.ts) reutiliza el mismo bootstrap que main.ts, por lo que no hay divergencia entre ejecutar la API con 
-ode dist/main y hacerlo sobre Vercel Functions.
-
-
-## Base de datos
-
-```bash
+El handler serverless (pps/api/src/vercel.ts) reutiliza el mismo bootstrap que main.ts, por lo que no hay divergencia entre ejecutar la API con 
+ode dist/main y hacerlo sobre Vercel Functions.
+
+
+## Deploy API en Railway
+
+El archivo `nixpacks.toml` define todo lo que Railway necesita (usa pnpm 8 + Node 20, instala dependencias con lockfile y ejecuta `pnpm run build`).
+
+Pasos:
+
+1. Crea un servicio en [Railway](https://railway.com/) apuntando al repositorio.
+2. En la pestaña **Variables**, carga al menos:
+   - `DATABASE_URL` (Postgres gestionado por Railway o externo).
+   - `PORT=3000`.
+   - `JWT_SECRET`, `API_URL`, `FRONTEND_URL`, `CORS_ORIGIN`.
+   - Credenciales de pagos (`MP_*`, `OPENPAY_*`) y SMTP igual que en Vercel.
+3. Railway detectará el `nixpacks.toml` y lanzará:
+   - Instalación: `pnpm install --frozen-lockfile`.
+   - Build: `pnpm run build`.
+   - Start: `pnpm run start` → este script ejecuta `prisma migrate deploy` y luego `node dist/main.js`.
+4. Configura el health check en `/api/health`.
+
+Con esto no necesitas comandos personalizados en Railway: basta con mantener el lockfile actualizado y las variables correctas.
+
+## Base de datos
+
+```bash
 cd apps/api
 pnpm run prisma:migrate      # aplica migraciones
 pnpm run prisma:generate     # genera Prisma Client
