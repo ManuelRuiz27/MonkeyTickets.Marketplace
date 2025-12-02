@@ -1,0 +1,51 @@
+services:
+  # NestJS API Backend
+  - type: web
+    name: monomarket-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    branch: main
+    env: docker
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+      - key: API_URL
+        value: https://monomarket-api.onrender.com
+      - key: FRONTEND_URL
+        value: https://monomarket-web-6pb.pages.dev
+      - key: CORS_ORIGIN
+        value: https://monomarket-web-6pb.pages.dev,https://monomarket-scanner.pages.dev
+      - key: MP_ACCESS_TOKEN
+        sync: false  # Set manually
+      - key: MP_PUBLIC_KEY
+        sync: false  # Set manually
+      - key: OPENPAY_MERCHANT_ID
+        sync: false  # Set manually
+      - key: OPENPAY_PRIVATE_KEY
+        sync: false  # Set manually
+      - key: OPENPAY_PUBLIC_KEY
+        sync: false  # Set manually
+      - key: OPENPAY_PRODUCTION
+        value: false
+      - key: SMTP_HOST
+        value: smtp.example.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false  # Set manually
+      - key: SMTP_PASSWORD
+        sync: false  # Set manually
+      - key: EMAIL_FROM
+        value: noreply@monomarket.com
