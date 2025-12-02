@@ -163,7 +163,7 @@ describe('EnvValidationService', () => {
             const mockConfigService = createMockConfigService({
                 NODE_ENV: 'production',
                 JWT_SECRET: 'a'.repeat(64),
-                DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+                DATABASE_URL: 'postgresql://user:pass@prod-db.example.com:5432/db',
                 REDIS_URL: 'redis://localhost:6379',
                 API_URL: 'https://api.monomarket.com',
                 FRONTEND_URL: 'https://monomarket.com',
@@ -185,6 +185,36 @@ describe('EnvValidationService', () => {
             const testService = module.get<EnvValidationService>(EnvValidationService);
 
             expect(() => testService.validateEnvironment()).not.toThrow();
+        });
+
+        it('should throw error if DATABASE_URL points to localhost in production', async () => {
+            const mockConfigService = createMockConfigService({
+                NODE_ENV: 'production',
+                JWT_SECRET: 'a'.repeat(64),
+                DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+                REDIS_URL: 'redis://localhost:6379',
+                API_URL: 'https://api.monomarket.com',
+                FRONTEND_URL: 'https://monomarket.com',
+                OPENPAY_MERCHANT_ID: 'merchant123',
+                OPENPAY_API_KEY: 'sk_real_key',
+                OPENPAY_SANDBOX: 'false',
+            });
+
+            const module = await Test.createTestingModule({
+                providers: [
+                    EnvValidationService,
+                    {
+                        provide: ConfigService,
+                        useValue: mockConfigService,
+                    },
+                ],
+            }).compile();
+
+            const testService = module.get<EnvValidationService>(EnvValidationService);
+
+            expect(() => testService.validateEnvironment()).toThrow(
+                'Environment validation failed',
+            );
         });
     });
 });

@@ -7,6 +7,7 @@ export class EnvValidationService {
 
     validateEnvironment(): void {
         const errors: string[] = [];
+        const nodeEnv = this.configService.get<string>('NODE_ENV');
 
         // Validate JWT_SECRET
         const jwtSecret = this.configService.get<string>('JWT_SECRET');
@@ -24,6 +25,18 @@ export class EnvValidationService {
             errors.push('DATABASE_URL is required');
         } else if (!databaseUrl.startsWith('postgresql://')) {
             errors.push('DATABASE_URL must be a valid PostgreSQL connection string');
+        } else {
+            try {
+                const parsedUrl = new URL(databaseUrl);
+                const hostname = parsedUrl.hostname.toLowerCase();
+                const localHosts = ['localhost', '127.0.0.1', '::1'];
+
+                if (nodeEnv === 'production' && localHosts.includes(hostname)) {
+                    errors.push('DATABASE_URL cannot point to localhost in production');
+                }
+            } catch {
+                errors.push('DATABASE_URL must be a valid PostgreSQL connection string');
+            }
         }
 
         // Validate REDIS_URL
@@ -33,7 +46,6 @@ export class EnvValidationService {
         }
 
         // Validate OpenPay credentials in production
-        const nodeEnv = this.configService.get<string>('NODE_ENV');
         if (nodeEnv === 'production') {
             const openpayMerchantId = this.configService.get<string>('OPENPAY_MERCHANT_ID');
             const openpayApiKey = this.configService.get<string>('OPENPAY_API_KEY');
