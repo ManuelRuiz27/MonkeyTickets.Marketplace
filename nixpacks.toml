@@ -11,8 +11,9 @@ cmds = [
 
 [phases.build]
 cmds = [
-  "pnpm run build"
+  "pnpm run build:packages",
+  "pnpm --filter @monomarket/api run build"
 ]
 
 [start]
-cmd = "pnpm run start"
+cmd = "pnpm --filter @monomarket/api run start:deploy"

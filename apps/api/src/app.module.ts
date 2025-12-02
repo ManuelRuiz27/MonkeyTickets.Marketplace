@@ -12,6 +12,7 @@ import { DirectorModule } from './modules/director/director.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { EnvValidationService } from './config/env.validation';
+import { HealthModule } from './modules/health/health.module';
 
 @Global()
 @Module({
@@ -31,6 +32,7 @@ import { EnvValidationService } from './config/env.validation';
         TemplatesModule,
         DirectorModule,
         LegalModule,
+        HealthModule,
     ],
     providers: [EnvValidationService],
     exports: [EnvValidationService],

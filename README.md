@@ -107,7 +107,7 @@ ode dist/main y hacerlo sobre Vercel Functions.
 
 ## Deploy API en Railway
 
-El archivo `nixpacks.toml` define todo lo que Railway necesita (usa pnpm 8 + Node 20, instala dependencias con lockfile y ejecuta `pnpm run build`).
+El archivo `nixpacks.toml` define todo lo que Railway necesita (usa pnpm 8 + Node 20, instala dependencias con lockfile y compila solo los paquetes compartidos + `@monomarket/api`).
 
 Pasos:
 
@@ -119,9 +119,9 @@ Pasos:
    - Credenciales de pagos (`MP_*`, `OPENPAY_*`) y SMTP igual que en Vercel.
 3. Railway detectará el `nixpacks.toml` y lanzará:
    - Instalación: `pnpm install --frozen-lockfile`.
-   - Build: `pnpm run build`.
-   - Start: `pnpm run start` → este script ejecuta `prisma migrate deploy` y luego `node dist/main.js`.
-4. Configura el health check en `/api/health`.
+   - Build: `pnpm run build:packages` y `pnpm --filter @monomarket/api run build`.
+   - Start: `pnpm --filter @monomarket/api run start:deploy` (corre `prisma migrate deploy` y después `node dist/main.js`).
+4. Configura el health check en `/api/health` (devuelve `status/database=ok` y responde 503 si no puede llegar a Postgres).
 
 Con esto no necesitas comandos personalizados en Railway: basta con mantener el lockfile actualizado y las variables correctas.
 
