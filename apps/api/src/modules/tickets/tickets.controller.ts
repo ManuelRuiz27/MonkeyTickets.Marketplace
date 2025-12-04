@@ -1,4 +1,4 @@
-import { Controller, Get, Param, StreamableFile, Post, UseGuards, HttpException, HttpStatus, Req, TooManyRequestsException } from '@nestjs/common';
+import { Controller, Get, Param, StreamableFile, Post, UseGuards, HttpException, HttpStatus, Req } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { StaffAuthGuard, StaffAuthenticatedRequest } from '../staff/guards/staff-auth.guard';
 import { RateLimitService } from '../../common/services/rate-limit.service';
@@ -80,7 +80,7 @@ export class TicketsController {
     private ensureRateLimit(key: string, limit: number, ttlMs: number) {
         const allowed = this.rateLimit.consume(key, limit, ttlMs);
         if (!allowed) {
-            throw new TooManyRequestsException('Rate limit exceeded');
+            throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
         }
     }
 }
