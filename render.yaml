@@ -63,7 +63,7 @@ services:
       - key: OPENPAY_PRODUCTION
         value: false
       - key: OPENPAY_SANDBOX
-        value: "true"
+        value: "false"
       # SMTP
       - key: SMTP_HOST
         value: smtp.example.com
