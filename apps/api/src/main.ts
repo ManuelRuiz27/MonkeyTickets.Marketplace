@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { logger, getEnvVar, getEnvNumber } from '@monomarket/config';
+import { logger, getEnvVar } from '@monomarket/config';
 import helmet from 'helmet';
 import { EnvValidationService } from './config/env.validation';
 
@@ -65,7 +65,7 @@ async function bootstrap() {
         }),
     );
 
-    const port = getEnvNumber('PORT', 3000);
+    const port = process.env.PORT ? Number(process.env.PORT) || 3000 : 3000;
     await app.listen(port, '0.0.0.0');
 
     logger.info(`🚀 MonoMarket Tickets API running on http://localhost:${port}/api`);

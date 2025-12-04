@@ -1,57 +1,49 @@
+databases:
+  - name: monomarket-db
+    plan: basic-256mb
+    ipAllowList: []
+
 services:
   - type: web
     name: monomarket-api
-    runtime: node
+    env: node
     plan: free
-    branch: main
-    region: oregon
+    rootDir: .
     buildCommand: |
-      cd apps/api
-      corepack enable
-      corepack prepare pnpm@latest --activate
       pnpm install --frozen-lockfile
-      cd ../../packages/contracts
-      pnpm run generate || echo "OpenAPI generation skipped"
-      cd ../../apps/api
-      pnpm prisma:generate
-      pnpm run build
-    startCommand: |
-      cd apps/api
-      pnpm prisma:migrate:deploy
-      node dist/main.js
+      pnpm --filter @monomarket/api build
+    startCommand: pnpm --filter @monomarket/api run start:deploy
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3000
-      # Database (Neon)
+        value: "10000"
       - key: DATABASE_URL
-        sync: false
-      # JWT
+        fromDatabase:
+          name: monomarket-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: monomarket-redis
+          type: keyvalue
+          property: connectionString
       - key: JWT_SECRET
         sync: false
-      # Redis (reservas de tickets y colas Bull)
-      - key: REDIS_URL
-        sync: false
-      # Logging
-      - key: LOG_LEVEL
-        value: info
-      # URLs base
       - key: API_URL
         value: https://monomarket-api.onrender.com
       - key: FRONTEND_URL
-        value: https://monomarket-web-6pb.pages.dev
+        value: https://monomarket-web.onrender.com
       - key: CORS_ORIGIN
-        value: https://monomarket-web-6pb.pages.dev,https://monomarket-scanner.pages.dev
-      # Mercado Pago
+        value: https://monomarket-web.onrender.com,https://monomarket-scanner.onrender.com
+      - key: LOG_LEVEL
+        value: info
       - key: MP_ACCESS_TOKEN
         sync: false
       - key: MP_PUBLIC_KEY
         sync: false
       - key: MP_WEBHOOK_SECRET
         sync: false
-      # Openpay (tarjetas + pagos alternativos)
       - key: OPENPAY_MERCHANT_ID
         sync: false
       - key: OPENPAY_API_KEY
@@ -61,17 +53,47 @@ services:
       - key: OPENPAY_PUBLIC_KEY
         sync: false
       - key: OPENPAY_PRODUCTION
-        value: false
+        value: "false"
       - key: OPENPAY_SANDBOX
         value: "false"
-      # SMTP
       - key: SMTP_HOST
         value: smtp.example.com
       - key: SMTP_PORT
-        value: 587
+        value: "587"
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASSWORD
         sync: false
       - key: EMAIL_FROM
-        value: noreply@monomarket.com
+        value: noreply@monomarket-tickets.com
+
+  - type: keyvalue
+    name: monomarket-redis
+    plan: free
+    ipAllowList: []
+
+  - type: static_site
+    name: monomarket-web
+    rootDir: apps/web
+    buildCommand: |
+      pnpm install --frozen-lockfile
+      pnpm --filter @monomarket/web build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://monomarket-api.onrender.com
+      - key: VITE_MP_PUBLIC_KEY
+        sync: false
+      - key: VITE_MP_LOCALE
+        value: es-MX
+
+  - type: static_site
+    name: monomarket-scanner
+    rootDir: apps/scanner
+    buildCommand: |
+      pnpm install --frozen-lockfile
+      pnpm --filter @monomarket/scanner build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://monomarket-api.onrender.com

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
+import { getEnvVar } from '@monomarket/config';
 
 /**
  * ReservationService handles temporary ticket locks during checkout.
@@ -12,7 +13,7 @@ export class ReservationService {
     private readonly LOCK_TTL_SECONDS = 300; // 5 minutes fixed
 
     constructor() {
-        const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+        const redisUrl = getEnvVar('REDIS_URL');
         this.redis = new Redis(redisUrl);
     }
 

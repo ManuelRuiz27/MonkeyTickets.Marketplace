@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PaymentsController } from '../../payments/payments.controller';
 import { PaymentsService } from '../../payments/payments.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -14,20 +15,6 @@ import { PaymentsConfigModule } from './payments-config.module';
 import { OpenpayModule } from './openpay/openpay.module';
 import { MercadoPagoModule } from './mercadopago/mercadopago.module';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-let redisHost = 'localhost';
-let redisPort = 6379;
-let redisPassword: string | undefined;
-
-try {
-    const parsed = new URL(redisUrl);
-    redisHost = parsed.hostname || redisHost;
-    redisPort = parsed.port ? Number(parsed.port) : redisPort;
-    redisPassword = parsed.password || undefined;
-} catch {
-    // use defaults
-}
-
 @Module({
     imports: [
         PrismaModule,
@@ -36,12 +23,16 @@ try {
         PaymentsConfigModule,
         OpenpayModule,
         MercadoPagoModule,
-        BullModule.forRoot({
-            redis: {
-                host: redisHost,
-                port: redisPort,
-                password: redisPassword,
-            },
+        BullModule.forRootAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+                redis: {
+                    url: config.get<string>('REDIS_URL'),
+                    maxRetriesPerRequest: null,
+                    enableReadyCheck: false,
+                },
+            }),
         }),
         BullModule.registerQueue({
             name: ORDER_FULFILLMENT_QUEUE,

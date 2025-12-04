@@ -73,7 +73,11 @@ interface AuthSnapshot {
     } | null;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+if (!API_BASE_URL) {
+    throw new Error('VITE_API_URL is not defined');
+}
 
 class ApiClient {
     private buildUrl(endpoint: string, query?: Record<string, any>) {
