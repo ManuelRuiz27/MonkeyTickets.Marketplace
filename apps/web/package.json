@@ -5,8 +5,8 @@
     "type": "module",
     "description": "MonoMarket Tickets - React frontend",
     "scripts": {
-        "dev": "vite",
-        "build": "tsc && vite build",
+        "dev": "pnpm -w run contracts:generate && vite",
+        "build": "pnpm -w run contracts:generate && tsc && vite build",
         "preview": "vite preview",
         "lint": "eslint . --ext ts,tsx",
         "lint:fix": "eslint . --ext ts,tsx --fix",
