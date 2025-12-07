@@ -10,7 +10,7 @@ services:
     plan: free
     rootDir: .
     buildCommand: |
-      pnpm install --frozen-lockfile
+      pnpm install
       pnpm run contracts:generate
       pnpm run build:packages
       pnpm --filter @monomarket/api build
@@ -78,7 +78,7 @@ services:
     name: monomarket-web
     rootDir: apps/web
     buildCommand: |
-      pnpm install --frozen-lockfile
+      pnpm install
       pnpm --filter @monomarket/web build
     staticPublishPath: dist
     envVars:
@@ -93,7 +93,7 @@ services:
     name: monomarket-scanner
     rootDir: apps/scanner
     buildCommand: |
-      pnpm install --frozen-lockfile
+      pnpm install
       pnpm --filter @monomarket/scanner build
     staticPublishPath: dist
     envVars:
