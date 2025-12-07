@@ -1381,6 +1381,8 @@ components:
             openpay:
               type: object
               properties:
+                http_code:
+                  type: integer
                 error_code:
                   type: integer
                 description:

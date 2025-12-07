@@ -142,7 +142,9 @@ Cada cambio en `packages/contracts/openapi/monomarket-tickets.yaml` requiere reg
 pnpm run contracts:generate
 ```
 
-Los tipos compilados se distribuyen mediante `pnpm run build:packages`.
+El archivo `packages/contracts/src/types.ts` se genera automáticamente a partir de `packages/contracts/openapi/monomarket-tickets.yaml` y nunca debe editarse manualmente.
+
+Los tipos compilados se distribuyen mediante `pnpm run build:packages`.
 
 ## Pruebas y calidad
 

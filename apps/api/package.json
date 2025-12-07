@@ -5,6 +5,7 @@
     "description": "MonoMarket Tickets API - NestJS backend",
     "scripts": {
         "build": "pnpm run prisma:generate && nest build",
+        "build:with-contracts": "pnpm -C ../.. run build:api",
         "dev": "pnpm run prisma:generate && nest start --watch",
         "start": "pnpm run prisma:generate && node dist/apps/api/src/main",
         "start:deploy": "pnpm run prisma:migrate:deploy && node dist/apps/api/src/main",
@@ -22,6 +23,9 @@
         "prisma:studio": "prisma studio",
         "prisma:seed": "ts-node prisma/seed.ts",
         "clean": "rm -rf dist"
+    },
+    "docs": {
+        "build": "En CI/CD se recomienda ejecutar `pnpm run build:api` en la raíz del monorepo en lugar de `pnpm --filter @monomarket/api build` para garantizar que se generen los contratos y se compilen los paquetes compartidos antes de construir la API."
     },
     "prisma": {
         "seed": "ts-node prisma/seed.ts"
