@@ -11,6 +11,7 @@ services:
     rootDir: .
     buildCommand: |
       pnpm install --frozen-lockfile
+      pnpm run build:packages
       pnpm --filter @monomarket/api build
     startCommand: pnpm --filter @monomarket/api run start:deploy
     healthCheckPath: /api/health
