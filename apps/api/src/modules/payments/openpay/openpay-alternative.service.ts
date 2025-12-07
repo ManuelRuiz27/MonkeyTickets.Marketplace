@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSpeiChargeDto, CreateOxxoChargeDto } from './dto/create-alternative-payment.dto';
+import { PaymentGateway, PaymentStatus } from '@prisma/client';
 
 /**
  * Servicio para métodos de pago alternativos de OpenPay (SPEI, OXXO)
@@ -34,10 +35,21 @@ export class OpenpayAlternativePaymentsService {
             throw new BadRequestException('Orden no encontrada');
         }
 
+         if (order.status !== 'PENDING') {
+             throw new BadRequestException('La orden no está pendiente de pago');
+         }
+
+         const normalizedAmount = Number(order.total);
+         if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+             throw new BadRequestException('El total de la orden no es válido para SPEI');
+         }
+
+         const currency = order.currency || dto.currency || 'MXN';
+
         const payload = {
             method: 'bank_account',
-            amount: dto.amount,
-            currency: dto.currency,
+            amount: normalizedAmount,
+            currency,
             description: dto.description,
             order_id: dto.orderId,
             customer: {
@@ -51,6 +63,28 @@ export class OpenpayAlternativePaymentsService {
             const response = await this.makeOpenPayRequest('/charges', 'POST', payload);
 
             this.logger.log(`Cargo SPEI creado: ${response.id}, CLABE: ${response.payment_method?.clabe}`);
+
+            // Registrar/actualizar Payment para SPEI (OpenPay)
+            await this.prisma.payment.upsert({
+                where: { orderId: dto.orderId },
+                update: {
+                    gateway: PaymentGateway.OPENPAY,
+                    amount: order.total,
+                    currency: currency.toUpperCase(),
+                    status: PaymentStatus.PENDING,
+                    gatewayTransactionId: response.id,
+                    paymentMethod: 'spei',
+                },
+                create: {
+                    orderId: dto.orderId,
+                    gateway: PaymentGateway.OPENPAY,
+                    amount: order.total,
+                    currency: currency.toUpperCase(),
+                    status: PaymentStatus.PENDING,
+                    gatewayTransactionId: response.id,
+                    paymentMethod: 'spei',
+                },
+            });
 
             return {
                 id: response.id,
@@ -86,6 +120,17 @@ export class OpenpayAlternativePaymentsService {
             throw new BadRequestException('Orden no encontrada');
         }
 
+        if (order.status !== 'PENDING') {
+            throw new BadRequestException('La orden no está pendiente de pago');
+        }
+
+        const normalizedAmount = Number(order.total);
+        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+            throw new BadRequestException('El total de la orden no es válido para OXXO');
+        }
+
+        const currency = order.currency || dto.currency || 'MXN';
+
         // OXXO típicamente vence en 3 días
         const daysToExpire = dto.daysToExpire || 3;
         const dueDate = new Date();
@@ -93,8 +138,8 @@ export class OpenpayAlternativePaymentsService {
 
         const payload = {
             method: 'store',
-            amount: dto.amount,
-            currency: dto.currency,
+            amount: normalizedAmount,
+            currency,
             description: dto.description,
             order_id: dto.orderId,
             due_date: dueDate.toISOString().split('T')[0], // YYYY-MM-DD
@@ -108,6 +153,28 @@ export class OpenpayAlternativePaymentsService {
             const response = await this.makeOpenPayRequest('/charges', 'POST', payload);
 
             this.logger.log(`Cargo OXXO creado: ${response.id}, ref: ${response.payment_method?.reference}`);
+
+            // Registrar/actualizar Payment para OXXO (OpenPay)
+            await this.prisma.payment.upsert({
+                where: { orderId: dto.orderId },
+                update: {
+                    gateway: PaymentGateway.OPENPAY,
+                    amount: order.total,
+                    currency: currency.toUpperCase(),
+                    status: PaymentStatus.PENDING,
+                    gatewayTransactionId: response.id,
+                    paymentMethod: 'oxxo',
+                },
+                create: {
+                    orderId: dto.orderId,
+                    gateway: PaymentGateway.OPENPAY,
+                    amount: order.total,
+                    currency: currency.toUpperCase(),
+                    status: PaymentStatus.PENDING,
+                    gatewayTransactionId: response.id,
+                    paymentMethod: 'oxxo',
+                },
+            });
 
             return {
                 id: response.id,

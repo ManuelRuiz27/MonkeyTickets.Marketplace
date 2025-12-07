@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../modules/prisma/prisma.service';
 import { SearchOrdersDto } from './dto/search-orders.dto';
-import { MailService } from '../modules/mail/mail.service';
+import { PrismaService } from '../modules/prisma/prisma.service';
+import { EmailService } from '../modules/email/email.service';
 import { LegalService } from '../legal/legal.service';
 
 @Injectable()
 export class DirectorOrdersService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly mailService: MailService,
+        private readonly emailService: EmailService,
         private readonly legalService: LegalService,
     ) { }
 
@@ -121,20 +121,7 @@ export class DirectorOrdersService {
             throw new BadRequestException('Order has no buyer email');
         }
 
-        await this.mailService.sendOrderConfirmation(
-            {
-                id: order.id,
-                event: { title: order.event?.title ?? 'Evento' },
-                buyer: {
-                    email: order.buyer.email,
-                    name: order.buyer.name,
-                },
-            },
-            order.tickets.map((ticket) => ({
-                id: ticket.id,
-                qrCode: ticket.qrCode,
-            })),
-        );
+        await this.emailService.resendTickets(order.id);
 
         return { status: 'sent' };
     }

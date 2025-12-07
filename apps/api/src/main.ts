@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { logger, getEnvVar } from '@monomarket/config';
 import helmet from 'helmet';
 import { EnvValidationService } from './config/env.validation';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
@@ -25,6 +26,9 @@ async function bootstrap() {
 
     // Global prefix
     app.setGlobalPrefix('api');
+
+    // Global error filter to evitar fuga de internals en respuestas
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     // Enhanced CORS configuration
     const corsOrigin = getEnvVar('CORS_ORIGIN', 'http://localhost:5173,http://localhost:5174,http://localhost:5175');
@@ -49,7 +53,7 @@ async function bootstrap() {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-organizer-id'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
         exposedHeaders: ['x-total-count', 'x-page', 'x-per-page'],
     });
 

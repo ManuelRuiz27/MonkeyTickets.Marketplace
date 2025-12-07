@@ -111,10 +111,6 @@ class ApiClient {
             headers['Authorization'] = `Bearer ${snapshot.token}`;
         }
 
-        if (options?.organizerScope && snapshot.user?.organizer?.id) {
-            headers['x-organizer-id'] = snapshot.user.organizer.id;
-        }
-
         return headers;
     }
 
@@ -182,6 +178,10 @@ class ApiClient {
         return this.request<ApiEvent>(`/public/events/${id}`);
     }
 
+    public async getUnlistedEventByToken(token: string) {
+        return this.request<ApiEvent>(`/public/events/unlisted/${token}`);
+    }
+
     // Checkout + payments
     public async createCheckoutSession(data: {
         eventId: string;
@@ -189,6 +189,7 @@ class ApiClient {
         name: string;
         email: string;
         phone: string;
+        captchaToken?: string;
     }) {
         return this.request<CheckoutSessionResponse>('/checkout/session', {
             method: 'POST',
@@ -535,6 +536,23 @@ class ApiClient {
         return this.request<{ status: string }>(`/director/orders/${id}/resend-tickets`, {
             method: 'POST',
         });
+    }
+
+    // Director - logs (operación)
+    public async getDirectorWebhookLogs(query?: { gateway?: string; limit?: number }) {
+        return this.request<any[]>(
+            '/director/logs/webhooks',
+            {},
+            { query },
+        );
+    }
+
+    public async getDirectorLegalLogs(query?: { action?: string; limit?: number }) {
+        return this.request<any[]>(
+            '/director/logs/legal',
+            {},
+            { query },
+        );
     }
 }
 

@@ -184,16 +184,6 @@ export class CheckoutService {
                 });
             }
 
-            await tx.payment.create({
-                data: {
-                    orderId: order.id,
-                    gateway: 'MERCADOPAGO',
-                    amount: total,
-                    currency: currency ?? 'MXN',
-                    status: 'PENDING',
-                },
-            });
-
             // MVP: Reservar tickets en Redis
             for (const [templateId, quantity] of ticketsByTemplate.entries()) {
                 await this.reservationService.reserveTickets(

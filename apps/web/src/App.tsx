@@ -21,6 +21,7 @@ import { DirectorOrganizersPage } from './pages/director/Organizers';
 import { DirectorFeePlansPage } from './pages/director/FeePlans';
 import { DirectorOrdersPage } from './pages/director/Orders';
 import { DirectorOrderDetailPage } from './pages/director/OrderDetail';
+import { DirectorLogsPage } from './pages/director/Logs';
 
 function App() {
     return (
@@ -31,6 +32,7 @@ function App() {
                     {/* Public Marketplace */}
                     <Route path="/" element={<EventList />} />
                     <Route path="/events/:eventId" element={<EventDetail />} />
+                    <Route path="/events/unlisted/:token" element={<EventDetail />} />
                     <Route path="/checkout/:eventId" element={<Checkout />} />
                     <Route path="/checkout/success" element={<CheckoutSuccess />} />
                     <Route path="/checkout/pending-spei/:orderId" element={<PaymentPendingSPEI />} />
@@ -134,6 +136,14 @@ function App() {
                         element={
                             <ProtectedRoute roles={['DIRECTOR']} redirectTo="/director/login">
                                 <DirectorOrderDetailPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/director/logs"
+                        element={
+                            <ProtectedRoute roles={['DIRECTOR']} redirectTo="/director/login">
+                                <DirectorLogsPage />
                             </ProtectedRoute>
                         }
                     />

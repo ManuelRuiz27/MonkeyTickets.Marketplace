@@ -279,6 +279,7 @@ export class PdfGeneratorService {
         try {
             const decoded = jwt.verify(token, this.jwtSecret, {
                 algorithms: ['HS256'],
+                ignoreExpiration: true,
             }) as TicketQRPayload;
 
             return decoded;

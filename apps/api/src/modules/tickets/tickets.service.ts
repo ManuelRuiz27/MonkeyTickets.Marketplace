@@ -134,6 +134,31 @@ export class TicketsService {
             throw new BadRequestException('Order is not paid');
         }
 
+        // Enforzar ventana temporal de validación basada en fechas del evento
+        const now = Date.now();
+        const event = ticket.order.event;
+        const startMs = event.startDate ? new Date(event.startDate).getTime() : undefined;
+        const endMs = event.endDate ? new Date(event.endDate).getTime() : undefined;
+
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+        const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+        const NINETY_DAYS_MS = 90 * ONE_DAY_MS;
+
+        let expiresAt: number;
+
+        if (typeof endMs === 'number' && !Number.isNaN(endMs)) {
+            expiresAt = endMs + 12 * ONE_HOUR_MS;
+        } else if (typeof startMs === 'number' && !Number.isNaN(startMs)) {
+            expiresAt = startMs + 24 * ONE_HOUR_MS;
+        } else {
+            // Fallback coherente con computeTicketStatus: 90 días desde ahora.
+            expiresAt = now + NINETY_DAYS_MS;
+        }
+
+        if (expiresAt <= now) {
+            throw new BadRequestException('Ticket expired for this event');
+        }
+
         const [updatedTicket, updatedEvent] = await this.prisma.$transaction([
             this.prisma.ticket.update({
                 where: { id: ticket.id },
@@ -252,8 +277,34 @@ export class TicketsService {
                 : 'UNPAID';
         }
 
-        const tokenExpired = tokenExpSeconds && tokenExpSeconds * 1000 < Date.now();
-        if (tokenExpired) {
+        const now = Date.now();
+
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+        const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+        const NINETY_DAYS_MS = 90 * ONE_DAY_MS;
+
+        const event = ticket.order?.event;
+        const startMs = event?.startDate ? new Date(event.startDate).getTime() : undefined;
+        const endMs = event?.endDate ? new Date(event.endDate).getTime() : undefined;
+
+        let expiresAt: number;
+
+        // Regla principal de negocio:
+        // - Si hay endDate: QR válido hasta 12h después del fin del evento.
+        // - Si solo hay startDate: QR válido hasta 24h después del inicio.
+        if (typeof endMs === 'number' && !Number.isNaN(endMs)) {
+            expiresAt = endMs + 12 * ONE_HOUR_MS;
+        } else if (typeof startMs === 'number' && !Number.isNaN(startMs)) {
+            expiresAt = startMs + 24 * ONE_HOUR_MS;
+        } else if (tokenExpSeconds) {
+            // Fallback: usar exp del token si viene definido.
+            expiresAt = tokenExpSeconds * 1000;
+        } else {
+            // Fallback final: si no hubo fechas ni exp, asumir 90 días desde ahora.
+            expiresAt = now + NINETY_DAYS_MS;
+        }
+
+        if (expiresAt <= now) {
             return 'EXPIRED';
         }
 

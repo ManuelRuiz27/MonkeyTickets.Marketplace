@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { TemplatesModule } from '../templates/templates.module';
 import { MailModule } from '../mail/mail.module';
+import { EmailModule } from '../email/email.module';
 import { OrdersModule } from '../orders/orders.module';
 import { OrganizerEventsController } from './events/organizer-events.controller';
 import { OrganizerEventsService } from './events/organizer-events.service';
@@ -12,7 +13,7 @@ import { OrganizerOrdersService } from './orders/organizer-orders.service';
 import { OrganizerDashboardController } from './organizer-dashboard.controller';
 
 @Module({
-    imports: [PrismaModule, TemplatesModule, OrdersModule, MailModule],
+    imports: [PrismaModule, TemplatesModule, OrdersModule, MailModule, EmailModule],
     controllers: [
         OrganizerEventsController,
         OrganizerTemplatesController,

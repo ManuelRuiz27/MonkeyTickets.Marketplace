@@ -1,9 +1,9 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
+import { Logger } from '@nestjs/common';
 import { ORDER_FULFILLMENT_JOB, ORDER_FULFILLMENT_QUEUE } from './payment.constants';
 import { PrismaService } from '../modules/prisma/prisma.service';
-import { MailService } from '../modules/mail/mail.service';
-import { Logger } from '@nestjs/common';
+import { EmailService } from '../modules/email/email.service';
 
 @Processor(ORDER_FULFILLMENT_QUEUE)
 export class OrderFulfillmentProcessor {
@@ -11,7 +11,7 @@ export class OrderFulfillmentProcessor {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly mailService: MailService,
+        private readonly emailService: EmailService,
     ) { }
 
     @Process(ORDER_FULFILLMENT_JOB)
@@ -39,7 +39,7 @@ export class OrderFulfillmentProcessor {
 
         if (existingTickets.length > 0) {
             this.logger.log(`Order ${orderId} already has ${existingTickets.length} tickets; resending email`);
-            await this.mailService.sendOrderConfirmation(order, existingTickets);
+            await this.emailService.sendTicketsEmail(orderId);
             return;
         }
 
@@ -78,7 +78,7 @@ export class OrderFulfillmentProcessor {
             where: { orderId },
         });
 
-        await this.mailService.sendOrderConfirmation(order, tickets);
+        await this.emailService.sendTicketsEmail(orderId);
         this.logger.log(`Order ${orderId} fulfillment completed`);
     }
 }

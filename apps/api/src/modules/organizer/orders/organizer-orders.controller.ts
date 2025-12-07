@@ -1,38 +1,47 @@
-import { BadRequestException, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { OrganizerOrdersService } from './organizer-orders.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 
 @Controller('organizer')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ORGANIZER')
 export class OrganizerOrdersController {
     constructor(private readonly organizerOrdersService: OrganizerOrdersService) { }
 
     @Get('events/:eventId/orders')
     listOrders(
-        @Headers('x-organizer-id') organizerId: string | undefined,
+        @Req() req: any,
         @Param('eventId') eventId: string,
     ) {
-        return this.organizerOrdersService.listEventOrders(this.requireOrganizerId(organizerId), eventId);
+        const organizerId = this.requireOrganizerId(req);
+        return this.organizerOrdersService.listEventOrders(organizerId, eventId);
     }
 
     @Get('orders/:orderId')
     orderDetail(
-        @Headers('x-organizer-id') organizerId: string | undefined,
+        @Req() req: any,
         @Param('orderId') orderId: string,
     ) {
-        return this.organizerOrdersService.getOrderDetail(this.requireOrganizerId(organizerId), orderId);
+        const organizerId = this.requireOrganizerId(req);
+        return this.organizerOrdersService.getOrderDetail(organizerId, orderId);
     }
 
     @Post('orders/:orderId/resend-tickets')
     resendTickets(
-        @Headers('x-organizer-id') organizerId: string | undefined,
+        @Req() req: any,
         @Param('orderId') orderId: string,
     ) {
-        return this.organizerOrdersService.resendTickets(this.requireOrganizerId(organizerId), orderId);
+        const organizerId = this.requireOrganizerId(req);
+        return this.organizerOrdersService.resendTickets(organizerId, orderId);
     }
 
-    private requireOrganizerId(id?: string) {
-        if (!id) {
-            throw new BadRequestException('Organizer context is required. TODO: add auth guard');
+    private requireOrganizerId(req: any) {
+        const organizerId = req.user?.organizer?.id;
+        if (!organizerId) {
+            throw new BadRequestException('Organizer context is required');
         }
-        return id;
+        return organizerId;
     }
 }

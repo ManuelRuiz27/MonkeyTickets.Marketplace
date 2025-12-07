@@ -7,6 +7,7 @@ interface ImportMetaEnv {
     readonly VITE_OPENPAY_SANDBOX: string;
     readonly VITE_MP_PUBLIC_KEY: string;
     readonly VITE_MP_LOCALE?: string;
+    readonly VITE_RECAPTCHA_SITE_KEY?: string;
 }
 
 interface ImportMeta {

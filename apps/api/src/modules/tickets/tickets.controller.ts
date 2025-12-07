@@ -31,9 +31,14 @@ export class TicketsController {
         try {
             return await this.ticketsService.verifyTicketToken(token, req.staffSession!);
         } catch (error: any) {
+            if (error instanceof HttpException) {
+                // Errores de dominio ya normalizados
+                throw error;
+            }
+
             throw new HttpException(
-                error.message || 'Failed to validate ticket',
-                error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
+                'Failed to validate ticket',
+                HttpStatus.BAD_REQUEST,
             );
         }
     }
@@ -48,9 +53,13 @@ export class TicketsController {
         try {
             return await this.ticketsService.checkInTicket(qrCode, req.staffSession!);
         } catch (error: any) {
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
             throw new HttpException(
-                error.message || 'Failed to check in ticket',
-                error instanceof HttpException ? error.getStatus() : HttpStatus.BAD_REQUEST
+                'Failed to check in ticket',
+                HttpStatus.BAD_REQUEST,
             );
         }
     }
@@ -64,9 +73,13 @@ export class TicketsController {
         try {
             return await this.ticketsService.getEventAttendance(eventId, req.staffSession!);
         } catch (error: any) {
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
             throw new HttpException(
-                error.message || 'Failed to get attendance',
-                error instanceof HttpException ? error.getStatus() : HttpStatus.NOT_FOUND
+                'Failed to get attendance',
+                HttpStatus.NOT_FOUND,
             );
         }
     }

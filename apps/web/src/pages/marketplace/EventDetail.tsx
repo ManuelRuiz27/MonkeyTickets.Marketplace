@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 
 export function EventDetail() {
-    const { eventId } = useParams();
+    const params = useParams();
+    const eventId = params.eventId;
+    const token = (params as any).token as string | undefined;
     const navigate = useNavigate();
     const [event, setEvent] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -11,17 +13,27 @@ export function EventDetail() {
     const [quantity, setQuantity] = useState(1);
 
     useEffect(() => {
+        setLoading(true);
         if (eventId) {
             apiClient.getEventById(eventId)
                 .then(setEvent)
-                .catch(console.error)
+                .catch(() => setEvent(null))
                 .finally(() => setLoading(false));
+        } else if (token) {
+            apiClient.getUnlistedEventByToken(token)
+                .then(setEvent)
+                .catch(() => setEvent(null))
+                .finally(() => setLoading(false));
+        } else {
+            setEvent(null);
+            setLoading(false);
         }
-    }, [eventId]);
+    }, [eventId, token]);
 
     const handleBuy = () => {
         if (!selectedTemplate) return;
-        navigate(`/checkout/${eventId}`, {
+        const targetEventId = eventId ?? event.id;
+        navigate(`/checkout/${targetEventId}`, {
             state: {
                 templateId: selectedTemplate,
                 quantity,
@@ -116,6 +128,7 @@ export function EventDetail() {
                             {event.templates?.map((template: any) => (
                                 <div
                                     key={template.id}
+                                    data-testid={`ticket-template-${template.id}`}
                                     onClick={() => setSelectedTemplate(template.id)}
                                     className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedTemplate === template.id
                                         ? 'border-primary-600 bg-primary-50 ring-1 ring-primary-600'

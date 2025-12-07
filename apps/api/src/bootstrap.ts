@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { EnvValidationService } from './config/env.validation';
 import { getEnvVar, logger } from '@monomarket/config';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 const DEFAULT_CORS_ORIGINS = 'http://localhost:5173,http://localhost:5174,http://localhost:5175';
 
@@ -35,6 +36,9 @@ export async function createApplication(): Promise<BootstrapResult> {
 
     app.setGlobalPrefix('api');
 
+    // Global error filter (también en entorno serverless)
+    app.useGlobalFilters(new AllExceptionsFilter());
+
     const corsOrigin = getEnvVar('CORS_ORIGIN', DEFAULT_CORS_ORIGINS);
     const origins = corsOrigin
         .split(',')
@@ -58,7 +62,7 @@ export async function createApplication(): Promise<BootstrapResult> {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-organizer-id'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
         exposedHeaders: ['x-total-count', 'x-page', 'x-per-page'],
     });
 

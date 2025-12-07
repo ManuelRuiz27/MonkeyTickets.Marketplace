@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfGeneratorService } from '../tickets/pdf-generator.service';
+import { MailService } from '../mail/mail.service';
 
 /**
- * Servicio de email para MVP
- * Nota: Para producción, integrar con SendGrid, Resend, o similar
- * Por ahora simulamos el envío y registramos en EmailLog
+ * Servicio de email de alto nivel
+ * Orquesta la generación de PDFs y delega el envío real a MailService.
  */
 @Injectable()
 export class EmailService {
@@ -14,8 +14,9 @@ export class EmailService {
     private readonly fromName: string;
 
     constructor(
-        private prisma: PrismaService,
-        private pdfGenerator: PdfGeneratorService,
+        private readonly prisma: PrismaService,
+        private readonly pdfGenerator: PdfGeneratorService,
+        private readonly mailService: MailService,
     ) {
         this.fromEmail = process.env.EMAIL_FROM || 'tickets@monomarket.mx';
         this.fromName = process.env.EMAIL_FROM_NAME || 'MonoMarket';
@@ -45,13 +46,11 @@ export class EmailService {
         // Generar PDFs de los tickets
         const pdfs = await this.pdfGenerator.generateOrderTickets(orderId);
 
-        // En producción, aquí se enviaría el email con SendGrid/Resend
-        // Por ahora simulamos y registramos
-        const subject = `✅ Tus tickets para ${order.event.title}`;
+        const subject = `🎟️ Tus tickets para ${order.event.title}`;
         const htmlContent = this.buildTicketEmailTemplate(order);
 
-        // Simular envío (en producción usar API real)
-        await this.simulateSendEmail({
+        await this.mailService.sendTicketsEmail({
+            orderId: order.id,
             to: order.buyer.email,
             subject,
             html: htmlContent,
@@ -61,18 +60,7 @@ export class EmailService {
             })),
         });
 
-        // Registrar en EmailLog
-        await this.prisma.emailLog.create({
-            data: {
-                orderId: order.id,
-                to: order.buyer.email,
-                subject,
-                status: 'SENT',
-                sentAt: new Date(),
-            },
-        });
-
-        this.logger.log(`Tickets enviados a ${order.buyer.email} para orden ${orderId}`);
+        this.logger.log(`Tickets enviados (via MailService) a ${order.buyer.email} para orden ${orderId}`);
     }
 
     /**
@@ -97,26 +85,17 @@ export class EmailService {
 
         if (!order) return;
 
-        const subject = `📋 Instrucciones de pago - ${order.event.title}`;
+        const subject = `🧾 Instrucciones de pago - ${order.event.title}`;
         const htmlContent = this.buildPendingPaymentTemplate(order, paymentDetails);
 
-        await this.simulateSendEmail({
+        await this.mailService.sendTicketsEmail({
+            orderId: order.id,
             to: order.buyer.email,
             subject,
             html: htmlContent,
         });
 
-        await this.prisma.emailLog.create({
-            data: {
-                orderId: order.id,
-                to: order.buyer.email,
-                subject,
-                status: 'SENT',
-                sentAt: new Date(),
-            },
-        });
-
-        this.logger.log(`Email de pago pendiente enviado a ${order.buyer.email}`);
+        this.logger.log(`Email de pago pendiente enviado (via MailService) a ${order.buyer.email}`);
     }
 
     /**
@@ -148,7 +127,7 @@ export class EmailService {
             
             <p>Tu compra ha sido confirmada. Aquí están los detalles:</p>
             
-            <h3>📅 ${order.event.title}</h3>
+            <h3>${order.event.title}</h3>
             <ul>
                 <li><strong>Fecha:</strong> ${new Date(order.event.startDate).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</li>
                 <li><strong>Lugar:</strong> ${order.event.venue || 'Por confirmar'}</li>
@@ -161,7 +140,7 @@ export class EmailService {
             <p>Número de orden: <code>${order.id}</code></p>
             
             <p style="margin-top: 30px;">
-                ¡Nos vemos en el evento! 🎉
+                ¡Nos vemos en el evento!
             </p>
         </div>
         <div class="footer">
@@ -184,7 +163,7 @@ export class EmailService {
         let paymentInstructions = '';
         if (isOxxo) {
             paymentInstructions = `
-                <h3>💳 Pagar en OXXO</h3>
+                <h3>Pagar en OXXO</h3>
                 <p><strong>Referencia:</strong> <code style="font-size: 18px;">${paymentDetails.reference}</code></p>
                 <p><strong>Monto:</strong> $${Number(order.total).toFixed(2)} ${order.currency}</p>
                 <p><strong>Válido hasta:</strong> ${paymentDetails.expiresAt}</p>
@@ -196,7 +175,7 @@ export class EmailService {
             `;
         } else if (isSpei) {
             paymentInstructions = `
-                <h3>🏦 Transferencia SPEI</h3>
+                <h3>Transferencia SPEI</h3>
                 <p><strong>CLABE:</strong> <code style="font-size: 16px;">${paymentDetails.clabe}</code></p>
                 <p><strong>Banco:</strong> ${paymentDetails.bank}</p>
                 <p><strong>Monto exacto:</strong> $${Number(order.total).toFixed(2)} ${order.currency}</p>
@@ -231,7 +210,7 @@ export class EmailService {
             ${paymentInstructions}
             
             <div class="alert">
-                <strong>⏰ Importante:</strong> Una vez realizado el pago, recibirás tus tickets automáticamente en este correo.
+                <strong>Importante:</strong> Una vez realizado el pago, recibirás tus tickets automáticamente en este correo.
             </div>
             
             <p>Número de orden: <code>${order.id}</code></p>
@@ -241,22 +220,5 @@ export class EmailService {
 </html>
         `.trim();
     }
-
-    /**
-     * Simula envío de email (en producción usar SendGrid/Resend)
-     */
-    private async simulateSendEmail(emailData: {
-        to: string;
-        subject: string;
-        html: string;
-        attachments?: any[];
-    }): Promise<void> {
-        // En producción:
-        // await sendgrid.send({ from: this.fromEmail, ...emailData })
-
-        this.logger.debug(`[SIMULADO] Email enviado a ${emailData.to}: ${emailData.subject}`);
-
-        // Simular delay de red
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
 }
+

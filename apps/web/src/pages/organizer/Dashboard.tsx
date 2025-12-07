@@ -50,7 +50,7 @@ export function OrganizerDashboard() {
     };
 
     const handleCopyUnlistedLink = (accessToken: string) => {
-        const link = `${window.location.origin}/public/events/unlisted/${accessToken}`;
+        const link = `${window.location.origin}/events/unlisted/${accessToken}`;
         navigator.clipboard.writeText(link);
         toast.success('✅ Enlace copiado al portapapeles');
     };

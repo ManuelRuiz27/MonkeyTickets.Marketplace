@@ -1,18 +1,27 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Req } from '@nestjs/common';
 import { logger } from '@monomarket/config';
 import { CheckoutService } from './checkout.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { RateLimitService } from '../../common/services/rate-limit.service';
+import { CaptchaService } from '../../common/services/captcha.service';
 
 @Controller('checkout')
 export class CheckoutController {
-    constructor(private readonly checkoutService: CheckoutService) { }
+    constructor(
+        private readonly checkoutService: CheckoutService,
+        private readonly rateLimit: RateLimitService,
+        private readonly captchaService: CaptchaService,
+    ) { }
 
     @Post('session')
     async createSession(
         @Body() createCheckoutSessionDto: CreateCheckoutSessionDto,
         @Req() req: any,
     ) {
-        return this.handleSessionCreation(createCheckoutSessionDto, req);
+        const ip = this.extractIp(req);
+        this.ensureRateLimit(ip);
+        await this.captchaService.validateCheckoutCaptcha(createCheckoutSessionDto.captchaToken, ip);
+        return this.handleSessionCreation(createCheckoutSessionDto, req, ip);
     }
 
     @Get('orders/:id')
@@ -26,10 +35,13 @@ export class CheckoutController {
         @Body() createCheckoutSessionDto: CreateCheckoutSessionDto,
         @Req() req: any,
     ) {
-        return this.handleSessionCreation(createCheckoutSessionDto, req);
+        const ip = this.extractIp(req);
+        this.ensureRateLimit(ip);
+        await this.captchaService.validateCheckoutCaptcha(createCheckoutSessionDto.captchaToken, ip);
+        return this.handleSessionCreation(createCheckoutSessionDto, req, ip);
     }
 
-    private handleSessionCreation(dto: CreateCheckoutSessionDto, req: any) {
+    private handleSessionCreation(dto: CreateCheckoutSessionDto, req: any, ip: string) {
         logger.info(
             {
                 eventId: dto.eventId,
@@ -42,7 +54,6 @@ export class CheckoutController {
             'Incoming checkout session request',
         );
 
-        const ip = this.extractIp(req);
         const userAgent = req.headers['user-agent'] ?? 'unknown';
         const termsVersion = process.env.TERMS_VERSION ?? 'v1';
 
@@ -62,5 +73,16 @@ export class CheckoutController {
             return forwarded[0];
         }
         return req.ip || req.socket.remoteAddress || 'unknown';
+    }
+
+    private ensureRateLimit(ip: string) {
+        const key = `checkout-session:${ip}`;
+        const allowed = this.rateLimit.consume(key, 10, 60_000);
+        if (!allowed) {
+            throw new HttpException(
+                'Demasiados intentos de checkout. Intenta nuevamente en unos segundos.',
+                HttpStatus.TOO_MANY_REQUESTS,
+            );
+        }
     }
 }

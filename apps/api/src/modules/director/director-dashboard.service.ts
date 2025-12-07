@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 
 /**
- * Servicio para dashboard del Director (MVP Épica 5)
+ * Servicio para dashboard del Director (MVP épica 5)
  */
 @Injectable()
 export class DirectorDashboardService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly emailService: EmailService,
+    ) { }
 
     /**
      * Obtiene resumen global de la plataforma
@@ -158,16 +162,7 @@ export class DirectorDashboardService {
             throw new Error('Orden no encontrada o no pagada');
         }
 
-        // TODO: Integrar con servicio de email para reenviar
-        // Por ahora solo registramos el intento
-        await this.prisma.emailLog.create({
-            data: {
-                orderId: order.id,
-                to: order.buyer.email,
-                subject: `Reenvío de tickets - Orden ${order.id}`,
-                status: 'PENDING',
-            },
-        });
+        await this.emailService.resendTickets(order.id);
 
         return { success: true, message: 'Tickets reenviados' };
     }
@@ -182,3 +177,4 @@ export class DirectorDashboardService {
         });
     }
 }
+

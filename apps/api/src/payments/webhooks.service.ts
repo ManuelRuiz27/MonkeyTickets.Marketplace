@@ -50,7 +50,8 @@ export class PaymentsWebhooksService {
 
         const isValidSignature = this.verifyMercadoPagoSignature(signature, requestId, payload);
         if (!isValidSignature) {
-            this.logger.warn('Mercado Pago signature could not be validated; proceeding with caution');
+            this.logger.warn('Mercado Pago signature could not be validated; rejecting webhook');
+            throw new BadRequestException('Invalid Mercado Pago signature');
         }
 
         const payment = await this.fetchMercadoPagoPayment(String(providerPaymentId));

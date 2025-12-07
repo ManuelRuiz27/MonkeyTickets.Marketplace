@@ -36,6 +36,7 @@ const mockForwardRun = __mocks.mockForwardRun;
 describe('OpenpayService', () => {
     let service: OpenpayService;
     let config: PaymentsConfigService;
+    let prisma: any;
     let dto: CreateOpenpayChargeDto;
 
     beforeEach(() => {
@@ -49,7 +50,22 @@ describe('OpenpayService', () => {
             isOpenpayProduction: jest.fn().mockReturnValue(false),
         } as unknown as PaymentsConfigService;
 
-        service = new OpenpayService(config);
+        prisma = {
+            order: {
+                findUnique: jest.fn().mockResolvedValue({
+                    id: 'order-123',
+                    status: 'PENDING',
+                    reservedUntil: null,
+                    total: 150,
+                    currency: 'MXN',
+                }),
+            },
+            payment: {
+                upsert: jest.fn().mockResolvedValue(null),
+            },
+        };
+
+        service = new OpenpayService(config, prisma);
         dto = {
             amount: 150,
             currency: 'MXN',

@@ -7,6 +7,7 @@ import {
     IsInt,
     Min,
     ArrayMinSize,
+    IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -38,4 +39,8 @@ export class CreateCheckoutSessionDto {
     @IsString()
     @IsNotEmpty()
     phone!: string;
+
+    @IsOptional()
+    @IsString()
+    captchaToken?: string;
 }

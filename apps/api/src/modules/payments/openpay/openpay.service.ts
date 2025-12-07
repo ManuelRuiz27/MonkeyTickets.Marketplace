@@ -11,6 +11,8 @@ import type { components } from '@monomarket/contracts';
 import { PaymentsConfigService } from '../../../payments/payments.config';
 import { CreateOpenpayChargeDto } from './dto/create-openpay-charge.dto';
 import { Openpay, OpenpayClient, forwardedForContext } from './openpay.client';
+import { PrismaService } from '../../prisma/prisma.service';
+import { PaymentGateway, PaymentStatus } from '@prisma/client';
 
 type OpenpayChargeResponseDto = components['schemas']['OpenpayChargeResponse'];
 type OpenpayChargeErrorBody = components['schemas']['OpenpayChargeError'];
@@ -61,6 +63,7 @@ export class OpenpayService {
 
     constructor(
         private readonly config: PaymentsConfigService,
+        private readonly prisma: PrismaService,
     ) {
         this.client = new Openpay(
             this.config.getOpenpayMerchantId(),
@@ -70,16 +73,70 @@ export class OpenpayService {
     }
 
     async createCharge(dto: CreateOpenpayChargeDto, clientIp: string): Promise<OpenpayChargeResult> {
-        const payload = this.toOpenpayPayload(dto);
+        // Siempre confiar en los datos de la orden, no en el monto enviado por el cliente
+        const order = await this.prisma.order.findUnique({
+            where: { id: dto.orderId },
+        });
+
+        if (!order) {
+            throw new BadRequestException('Order not found');
+        }
+
+        if (order.status !== 'PENDING') {
+            throw new BadRequestException('Order is not pending payment');
+        }
+
+        if (order.reservedUntil && order.reservedUntil < new Date()) {
+            throw new BadRequestException('Order reservation expired');
+        }
+
+        const normalizedAmount = Number(order.total);
+        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+            throw new BadRequestException('Order total is invalid for payment');
+        }
+
+        const currency = order.currency || dto.currency || 'MXN';
+
+        const payload = this.toOpenpayPayload({
+            ...dto,
+            amount: normalizedAmount,
+            currency: currency as any,
+        });
         const normalizedIp = clientIp || '0.0.0.0';
 
         try {
             const charge = await this.dispatchCharge(payload, normalizedIp);
-            const response = this.toChargeResult(charge, dto);
+            const response = this.toChargeResult(charge, {
+                ...dto,
+                amount: normalizedAmount,
+                currency: currency as any,
+            });
+
+            // Alinear registro Payment con gateway real (OPENPAY, método tarjeta)
+            await this.prisma.payment.upsert({
+                where: { orderId: dto.orderId },
+                update: {
+                    gateway: PaymentGateway.OPENPAY,
+                    amount: order.total,
+                    currency: currency.toUpperCase(),
+                    status: PaymentStatus.PENDING,
+                    gatewayTransactionId: response.id,
+                    paymentMethod: 'card',
+                },
+                create: {
+                    orderId: dto.orderId,
+                    gateway: PaymentGateway.OPENPAY,
+                    amount: order.total,
+                    currency: currency.toUpperCase(),
+                    status: PaymentStatus.PENDING,
+                    gatewayTransactionId: response.id,
+                    paymentMethod: 'card',
+                },
+            });
 
             logger.info({
                 orderId: dto.orderId,
-                amount: dto.amount,
+                amount: normalizedAmount,
                 email: dto.customer.email,
             }, 'Cargo Openpay autorizado');
 
