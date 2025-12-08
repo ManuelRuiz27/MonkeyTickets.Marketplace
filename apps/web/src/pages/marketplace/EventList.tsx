@@ -107,9 +107,9 @@ export function EventList() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50">
             {/* Hero Section */}
-            <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-20">
-                <div className="container mx-auto px-4">
-                    <div className="max-w-3xl">
+            <div className="hero-vignette bg-gradient-to-r from-primary-600 to-primary-800 text-white py-20">
+                <div className="container mx-auto px-4 relative z-10">
+                    <div className="max-w-3xl mx-auto text-center">
                         <h1 className="text-5xl font-bold mb-4">
                             Descubre Eventos Increíbles en el Bajío
                         </h1>

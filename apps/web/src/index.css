@@ -138,6 +138,19 @@ body {
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Hero vignette effect */
+  .hero-vignette {
+    @apply relative overflow-hidden;
+  }
+
+  .hero-vignette::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 0%, rgba(15, 23, 42, 0.6) 55%, rgba(0, 0, 0, 0.9) 100%);
+  }
 }
 
 /* ============================================
