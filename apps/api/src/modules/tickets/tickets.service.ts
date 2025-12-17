@@ -111,6 +111,13 @@ export class TicketsService {
                 template: {
                     select: { name: true },
                 },
+                rp: {
+                    select: {
+                        id: true,
+                        name: true,
+                        code: true,
+                    },
+                },
             },
         });
 
@@ -159,7 +166,8 @@ export class TicketsService {
             throw new BadRequestException('Ticket expired for this event');
         }
 
-        const [updatedTicket, updatedEvent] = await this.prisma.$transaction([
+        // Transaction atómica: actualizar ticket, event y RP si existe
+        const updates = [
             this.prisma.ticket.update({
                 where: { id: ticket.id },
                 data: {
@@ -187,6 +195,13 @@ export class TicketsService {
                     template: {
                         select: { name: true },
                     },
+                    rp: {
+                        select: {
+                            id: true,
+                            name: true,
+                            code: true,
+                        },
+                    },
                 },
             }),
             this.prisma.event.update({
@@ -195,7 +210,21 @@ export class TicketsService {
                     attendanceCount: { increment: 1 },
                 },
             }),
-        ]);
+        ];
+
+        // Si el ticket fue generado por un RP, incrementar su contador
+        if (ticket.rpId) {
+            updates.push(
+                this.prisma.rP.update({
+                    where: { id: ticket.rpId },
+                    data: {
+                        ticketsUsed: { increment: 1 },
+                    },
+                }),
+            );
+        }
+
+        const [updatedTicket, updatedEvent] = await this.prisma.$transaction(updates);
 
         return {
             success: true,
@@ -212,6 +241,7 @@ export class TicketsService {
                 attendanceCount: updatedEvent.attendanceCount,
                 title: updatedTicket.order.event.title,
             },
+            rp: ticket.rp || null, // Información del RP si existe
         };
     }
 

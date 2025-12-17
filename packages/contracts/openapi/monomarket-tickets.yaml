@@ -1,4 +1,4 @@
-openapi: 3.0.3
+﻿openapi: 3.0.3
 info:
   title: MonoMarket Tickets API
   description: |
@@ -8,7 +8,7 @@ info:
     - Public marketplace for event discovery and checkout
     - Organizer panel for event and sales management
     - Director panel for platform administration
-    - Payment processing with Mercado Pago
+    - Manual payment confirmation (sin pasarela integrada)
     - Automated ticket generation with QR codes and PDF delivery
   version: 1.0.0
   contact:
@@ -25,10 +25,6 @@ tags:
     description: Public marketplace endpoints
   - name: Checkout
     description: Checkout and order processing
-  - name: Payments
-    description: Payment processing
-  - name: Webhooks
-    description: Payment gateway webhooks
   - name: Auth
     description: Authentication
   - name: Organizer
@@ -162,124 +158,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/Order'
 
-  /payments/pay:
+  /checkout/orders/{orderId}/manual-complete:
     post:
-      tags: [Payments]
-      summary: Process payment
-      description: Process payment with tokenized card from Mercado Pago
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                orderId:
-                  type: string
-                gateway:
-                  type: string
-                  enum: [mercadopago]
-                paymentMethod:
-                  type: string
-                  enum: [card, google_pay, apple_pay]
-                token:
-                  type: string
-                  description: Payment token from frontend
+      tags: [Checkout]
+      summary: Confirm manual payment and generate tickets
+      description: |
+        Marks a pending order as paid, generates tickets, and sends the PDF by email.
+        Returns existing tickets if the order was already completed.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
-          description: Payment processed
+          description: Manual completion result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Payment'
-
-  /payments/openpay/charge:
-    post:
-      tags: [Payments]
-      summary: Create Openpay card charge
-      description: Creates a tokenized card charge through Openpay using frontend tokenization.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OpenpayChargeRequest'
-      responses:
-        '201':
-          description: Charge created in Openpay
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenpayChargeResponse'
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                  tickets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
         '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenpayChargeError'
-        '402':
-          description: Card declined
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenpayChargeError'
-        '409':
-          description: Charge conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenpayChargeError'
-        '500':
-          description: Openpay integration error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenpayChargeError'
+          description: Order cannot be completed
+        '404':
+          description: Order not found
 
-  /payments/mercadopago/preference:
-    post:
-      tags: [Payments]
-      summary: Create Mercado Pago Checkout preference
-      description: Generates a Checkout Pro preference and returns redirect URLs.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MercadoPagoPreferenceRequest'
-      responses:
-        '201':
-          description: Preference created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MercadoPagoPreferenceResponse'
-        '400':
-          description: Invalid preference payload
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OpenpayChargeError'
-
-  # ========================================
-  # WEBHOOKS
-  # ========================================
-  /webhooks/mercadopago:
-    post:
-      tags: [Webhooks]
-      summary: Mercado Pago webhook endpoint
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MercadoPagoWebhookPayload'
-      responses:
-        '200':
-          description: Webhook processed
-
-  # ========================================
-  # AUTHENTICATION
-  # ========================================
   /auth/register:
     post:
       tags: [Auth]
@@ -1267,193 +1180,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Ticket'
-        payment:
-          $ref: '#/components/schemas/Payment'
-
-    Payment:
-      type: object
-      properties:
-        id:
-          type: string
-        orderId:
-          type: string
-        gateway:
-          type: string
-          enum: [mercadopago]
-        amount:
-          type: number
-        currency:
-          type: string
-        status:
-          type: string
-          enum: [pending, completed, failed, refunded]
-        gatewayTransactionId:
-          type: string
-        paymentMethod:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-
-    OpenpayChargeRequest:
-      type: object
-      required:
-        - amount
-        - currency
-        - description
-        - orderId
-        - tokenId
-        - deviceSessionId
-        - customer
-      properties:
-        amount:
-          type: number
-          minimum: 1
-        currency:
-          type: string
-          enum: [MXN]
-        description:
-          type: string
-        orderId:
-          type: string
-        tokenId:
-          type: string
-          description: Token generated by Openpay.js on the frontend.
-        deviceSessionId:
-          type: string
-          description: Device session identifier returned by Openpay.js.
-        customer:
-          type: object
-          required:
-            - name
-            - last_name
-            - email
-            - phone_number
-          properties:
-            name:
-              type: string
-            last_name:
-              type: string
-            email:
-              type: string
-              format: email
-            phone_number:
-              type: string
-
-    OpenpayChargeResponse:
-      type: object
-      properties:
-        id:
-          type: string
-        status:
-          type: string
-          enum: [completed, in_review]
-        authorization:
-          type: string
-        operation_date:
-          type: string
-          format: date-time
-        orderId:
-          type: string
-        amount:
-          type: number
-        currency:
-          type: string
-          enum: [MXN]
-
-    OpenpayChargeError:
-      type: object
-      properties:
-        error:
-          type: string
-        message:
-          type: string
-        details:
-          type: object
-          properties:
-            orderId:
-              type: string
-            amount:
-              type: number
-            email:
-              type: string
-              format: email
-            openpay:
-              type: object
-              properties:
-                http_code:
-                  type: integer
-                error_code:
-                  type: integer
-                description:
-                  type: string
-                category:
-                  type: string
-                request_id:
-                  type: string
-
-    MercadoPagoPreferenceRequest:
-      type: object
-      required:
-        - orderId
-        - title
-        - quantity
-        - unitPrice
-        - currency
-        - payer
-      properties:
-        orderId:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-        quantity:
-          type: integer
-          minimum: 1
-        unitPrice:
-          type: number
-        currency:
-          type: string
-          enum: [MXN]
-        notificationUrl:
-          type: string
-          format: uri
-        payer:
-          type: object
-          required:
-            - email
-          properties:
-            email:
-              type: string
-              format: email
-            name:
-              type: string
-
-    MercadoPagoPreferenceResponse:
-      type: object
-      properties:
-        preferenceId:
-          type: string
-        initPoint:
-          type: string
-          format: uri
-        sandboxInitPoint:
-          type: string
-          format: uri
-
-    MercadoPagoWebhookPayload:
-      type: object
-      properties:
-        type:
-          type: string
-        action:
-          type: string
-        data:
-          type: object
-          properties:
-            id:
-              type: string
 
     Ticket:
       type: object

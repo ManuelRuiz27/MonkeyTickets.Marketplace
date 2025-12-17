@@ -159,70 +159,6 @@ describe('EnvValidationService', () => {
             );
         });
 
-        it('should validate OpenPay config in production', async () => {
-            const mockConfigService = createMockConfigService({
-                NODE_ENV: 'production',
-                JWT_SECRET: 'a'.repeat(64),
-                DATABASE_URL: 'postgresql://user:pass@prod-db.example.com:5432/db',
-                REDIS_URL: 'redis://localhost:6379',
-                API_URL: 'https://api.monomarket.com',
-                FRONTEND_URL: 'https://monomarket.com',
-                OPENPAY_MERCHANT_ID: 'merchant123',
-                OPENPAY_API_KEY: 'sk_real_key',
-                OPENPAY_PRIVATE_KEY: 'sk_real_private_key',
-                OPENPAY_WEBHOOK_SECRET: 'openpay-webhook-secret',
-                OPENPAY_SANDBOX: 'false',
-                MERCADOPAGO_ACCESS_TOKEN: 'prod-mp-access-token',
-                MERCADOPAGO_PUBLIC_KEY: 'prod-mp-public-key',
-                MERCADOPAGO_WEBHOOK_SECRET: 'prod-mp-webhook-secret',
-            });
-
-            const module = await Test.createTestingModule({
-                providers: [
-                    EnvValidationService,
-                    {
-                        provide: ConfigService,
-                        useValue: mockConfigService,
-                    },
-                ],
-            }).compile();
-
-            const testService = module.get<EnvValidationService>(EnvValidationService);
-
-            expect(() => testService.validateEnvironment()).not.toThrow();
-        });
-
-        it('should require Mercado Pago credentials in production', async () => {
-            const mockConfigService = createMockConfigService({
-                NODE_ENV: 'production',
-                JWT_SECRET: 'a'.repeat(64),
-                DATABASE_URL: 'postgresql://user:pass@prod-db.example.com:5432/db',
-                REDIS_URL: 'redis://localhost:6379',
-                API_URL: 'https://api.monomarket.com',
-                FRONTEND_URL: 'https://monomarket.com',
-                OPENPAY_MERCHANT_ID: 'merchant123',
-                OPENPAY_API_KEY: 'sk_real_key',
-                OPENPAY_PRIVATE_KEY: 'sk_real_private_key',
-                OPENPAY_SANDBOX: 'false',
-            });
-
-            const module = await Test.createTestingModule({
-                providers: [
-                    EnvValidationService,
-                    {
-                        provide: ConfigService,
-                        useValue: mockConfigService,
-                    },
-                ],
-            }).compile();
-
-            const testService = module.get<EnvValidationService>(EnvValidationService);
-
-            expect(() => testService.validateEnvironment()).toThrow(
-                'Environment validation failed',
-            );
-        });
-
         it('should throw error if DATABASE_URL points to localhost in production', async () => {
             const mockConfigService = createMockConfigService({
                 NODE_ENV: 'production',
@@ -231,10 +167,6 @@ describe('EnvValidationService', () => {
                 REDIS_URL: 'redis://localhost:6379',
                 API_URL: 'https://api.monomarket.com',
                 FRONTEND_URL: 'https://monomarket.com',
-                OPENPAY_MERCHANT_ID: 'merchant123',
-                OPENPAY_API_KEY: 'sk_real_key',
-                OPENPAY_PRIVATE_KEY: 'sk_real_private_key',
-                OPENPAY_SANDBOX: 'false',
             });
 
             const module = await Test.createTestingModule({

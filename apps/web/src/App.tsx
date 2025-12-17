@@ -4,8 +4,6 @@ import { EventList } from './pages/marketplace/EventList';
 import { EventDetail } from './pages/marketplace/EventDetail';
 import { Checkout } from './pages/checkout/Checkout';
 import { CheckoutSuccess } from './pages/checkout/CheckoutSuccess';
-import { PaymentPendingSPEI } from './pages/checkout/PaymentPendingSPEI';
-import { PaymentPendingOXXO } from './pages/checkout/PaymentPendingOXXO';
 import { OrganizerLogin } from './pages/organizer/Login';
 import { EventPdfTemplate } from './pages/organizer/EventPdfTemplate';
 import { DirectorLogin } from './pages/director/Login';
@@ -21,7 +19,8 @@ import { DirectorOrganizersPage } from './pages/director/Organizers';
 import { DirectorFeePlansPage } from './pages/director/FeePlans';
 import { DirectorOrdersPage } from './pages/director/Orders';
 import { DirectorOrderDetailPage } from './pages/director/OrderDetail';
-import { DirectorLogsPage } from './pages/director/Logs';
+import { RPDashboardPage } from './pages/organizer/RPDashboard';
+import { RPTicketGeneratorPage } from './pages/public/RPTicketGenerator';
 
 function App() {
     return (
@@ -35,8 +34,9 @@ function App() {
                     <Route path="/events/unlisted/:token" element={<EventDetail />} />
                     <Route path="/checkout/:eventId" element={<Checkout />} />
                     <Route path="/checkout/success" element={<CheckoutSuccess />} />
-                    <Route path="/checkout/pending-spei/:orderId" element={<PaymentPendingSPEI />} />
-                    <Route path="/checkout/pending-oxxo/:orderId" element={<PaymentPendingOXXO />} />
+
+                    {/* RP - Public Ticket Generation */}
+                    <Route path="/rp/:rpCode" element={<RPTicketGeneratorPage />} />
 
                     {/* Organizer Panel */}
                     <Route path="/organizer/login" element={<OrganizerLogin />} />
@@ -96,6 +96,14 @@ function App() {
                             </ProtectedRoute>
                         }
                     />
+                    <Route
+                        path="/organizer/events/:eventId/rp-dashboard"
+                        element={
+                            <ProtectedRoute roles={['ORGANIZER']} redirectTo="/organizer/login">
+                                <RPDashboardPage />
+                            </ProtectedRoute>
+                        }
+                    />
 
                     {/* Director Panel */}
                     <Route path="/director/login" element={<DirectorLogin />} />
@@ -136,14 +144,6 @@ function App() {
                         element={
                             <ProtectedRoute roles={['DIRECTOR']} redirectTo="/director/login">
                                 <DirectorOrderDetailPage />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/director/logs"
-                        element={
-                            <ProtectedRoute roles={['DIRECTOR']} redirectTo="/director/login">
-                                <DirectorLogsPage />
                             </ProtectedRoute>
                         }
                     />

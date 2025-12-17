@@ -4,6 +4,7 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { CheckoutService } from './checkout.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LegalService } from '../../legal/legal.service';
+import { EmailService } from '../email/email.service';
 
 const MOCK_EVENT_ID = 'event-1';
 const MOCK_BUYER = { id: 'buyer-1', email: 'buyer@test.com', name: 'Test Buyer', phone: '5555555555' };
@@ -12,6 +13,7 @@ describe('CheckoutService', () => {
     let prisma: DeepMockProxy<PrismaService>;
     let legalService: Pick<LegalService, 'logOrderContext'>;
     let reservationService: any;
+    let emailService: Pick<EmailService, 'sendTicketsEmail'>;
     let service: CheckoutService;
 
     beforeEach(() => {
@@ -22,12 +24,16 @@ describe('CheckoutService', () => {
         reservationService = {
             lockTickets: jest.fn().mockResolvedValue(true),
             releaseTickets: jest.fn(),
+            releaseReservation: jest.fn().mockResolvedValue(undefined),
             checkAvailability: jest.fn().mockResolvedValue(true),
             validateAvailability: jest.fn().mockResolvedValue(undefined),
             reserveTickets: jest.fn().mockResolvedValue(true),
         };
+        emailService = {
+            sendTicketsEmail: jest.fn().mockResolvedValue(undefined),
+        };
         prisma.$transaction.mockImplementation(async (callback) => callback(prisma as unknown as PrismaClient));
-        service = new CheckoutService(prisma, legalService as LegalService, reservationService);
+        service = new CheckoutService(prisma, legalService as LegalService, reservationService, emailService as EmailService);
     });
 
     it('creates a checkout session computing totals', async () => {
@@ -68,8 +74,6 @@ describe('CheckoutService', () => {
             total: new Prisma.Decimal(250),
             currency: 'MXN',
         } as any);
-        prisma.payment.create.mockResolvedValue({ id: 'payment-1' } as any);
-
         const response = await service.createCheckoutSession(
             {
                 eventId: MOCK_EVENT_ID,
@@ -158,5 +162,55 @@ describe('CheckoutService', () => {
             where: { id: 'order-1' },
             include: { buyer: true },
         });
+    });
+
+    it('completes manual order and generates tickets', async () => {
+        prisma.order.findUnique.mockResolvedValue({
+            id: 'order-1',
+            status: 'PENDING',
+            items: [{ templateId: 'template-1', quantity: 2 }],
+            tickets: [],
+        } as any);
+        prisma.ticketTemplate.findMany.mockResolvedValue([
+            { id: 'template-1', quantity: 10, sold: 1, name: 'General' },
+        ] as any);
+        prisma.ticketTemplate.update.mockResolvedValue({} as any);
+        prisma.ticket.create
+            .mockResolvedValueOnce({ id: 'ticket-1' } as any)
+            .mockResolvedValueOnce({ id: 'ticket-2' } as any);
+        prisma.order.update.mockResolvedValue({ id: 'order-1' } as any);
+
+        const result = await service.completeManualOrder('order-1');
+
+        expect(result.tickets).toHaveLength(2);
+        expect(prisma.ticketTemplate.update).toHaveBeenCalledWith({
+            where: { id: 'template-1' },
+            data: { sold: { increment: 2 } },
+        });
+        expect(prisma.ticket.create).toHaveBeenCalledTimes(2);
+        expect(prisma.order.update).toHaveBeenCalledWith({
+            where: { id: 'order-1' },
+            data: expect.objectContaining({ status: 'PAID' }),
+        });
+        expect(reservationService.releaseReservation).toHaveBeenCalledWith('order-1');
+        expect(emailService.sendTicketsEmail).toHaveBeenCalledWith('order-1');
+    });
+
+    it('returns existing tickets when order already paid', async () => {
+        prisma.order.findUnique.mockResolvedValue({
+            id: 'order-2',
+            status: 'PAID',
+            items: [],
+            tickets: [{ id: 'ticket-existing' }],
+        } as any);
+
+        const result = await service.completeManualOrder('order-2');
+
+        expect(result).toEqual({
+            orderId: 'order-2',
+            tickets: [{ id: 'ticket-existing' }],
+        });
+        expect(prisma.ticketTemplate.findMany).not.toHaveBeenCalled();
+        expect(emailService.sendTicketsEmail).not.toHaveBeenCalled();
     });
 });

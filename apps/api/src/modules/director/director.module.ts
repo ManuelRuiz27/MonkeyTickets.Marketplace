@@ -12,7 +12,6 @@ import { DirectorMetricsService } from '../../director/director-metrics.service'
 import { DirectorOrganizersService } from '../../director/director-organizers.service';
 import { DirectorFeePlansService } from '../../director/director-feeplans.service';
 import { DirectorOrdersService } from '../../director/director-orders.service';
-import { DirectorLogsController } from '../../director/director-logs.controller';
 
 @Module({
     imports: [PrismaModule, LegalModule, MailModule, EmailModule],
@@ -22,7 +21,6 @@ import { DirectorLogsController } from '../../director/director-logs.controller'
         DirectorOrganizersController,
         DirectorFeePlansController,
         DirectorOrdersController,
-        DirectorLogsController,
     ],
     providers: [
         DirectorMetricsService,

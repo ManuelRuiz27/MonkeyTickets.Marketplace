@@ -40,24 +40,6 @@ services:
         value: https://monomarket-web.onrender.com,https://monomarket-scanner.onrender.com
       - key: LOG_LEVEL
         value: info
-      - key: MP_ACCESS_TOKEN
-        sync: false
-      - key: MP_PUBLIC_KEY
-        sync: false
-      - key: MP_WEBHOOK_SECRET
-        sync: false
-      - key: OPENPAY_MERCHANT_ID
-        sync: false
-      - key: OPENPAY_API_KEY
-        sync: false
-      - key: OPENPAY_PRIVATE_KEY
-        sync: false
-      - key: OPENPAY_PUBLIC_KEY
-        sync: false
-      - key: OPENPAY_PRODUCTION
-        value: "false"
-      - key: OPENPAY_SANDBOX
-        value: "false"
       - key: SMTP_HOST
         value: smtp.example.com
       - key: SMTP_PORT
@@ -88,10 +70,6 @@ services:
           type: web
           name: monomarket-api
           envVarKey: RENDER_EXTERNAL_URL
-      - key: VITE_MP_PUBLIC_KEY
-        sync: false
-      - key: VITE_MP_LOCALE
-        value: es-MX
 
   - type: web
     name: monomarket-scanner

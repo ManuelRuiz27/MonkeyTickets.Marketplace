@@ -1,99 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { EventFiltersComponent, EventFilters } from '../../components/marketplace/EventFilters';
 
-
 export function EventList() {
     const [events, setEvents] = useState<any[]>([]);
-    const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<EventFilters>({});
+    const [totalResults, setTotalResults] = useState<number | null>(null);
 
-    useEffect(() => {
-        apiClient
-            .getEvents()
-            .then((response) => {
+    const fetchEvents = useCallback(
+        async (currentFilters: EventFilters) => {
+            setLoading(true);
+            try {
+                const params = {
+                    search: currentFilters.search || undefined,
+                    category: currentFilters.category || undefined,
+                    city: currentFilters.city || undefined,
+                    minPrice: currentFilters.minPrice,
+                    maxPrice: currentFilters.maxPrice,
+                    startDate: currentFilters.startDate || undefined,
+                    endDate: currentFilters.endDate || undefined,
+                };
+                const response = await apiClient.getEvents(params);
                 const eventsList = response.data || [];
                 setEvents(eventsList);
-                setFilteredEvents(eventsList);
-                setLoading(false);
-            })
-            .catch((error) => {
+                setTotalResults(response.pagination?.total ?? eventsList.length);
+            } catch (error) {
                 console.error('Error al cargar eventos:', error);
+                setEvents([]);
+                setTotalResults(0);
+            } finally {
                 setLoading(false);
-            });
-    }, []);
+            }
+        },
+        [],
+    );
 
-    // Apply filters whenever they change
     useEffect(() => {
-        if (!events.length) {
-            setFilteredEvents([]);
-            return;
-        }
-
-        let result = [...events];
-
-        // Search filter
-        if (filters.search) {
-            const searchLower = filters.search.toLowerCase();
-            result = result.filter((event) =>
-                event.title?.toLowerCase().includes(searchLower) ||
-                event.description?.toLowerCase().includes(searchLower) ||
-                event.venue?.toLowerCase().includes(searchLower)
-            );
-        }
-
-        // Category filter
-        if (filters.category) {
-            result = result.filter((event) => event.category === filters.category);
-        }
-
-        // City filter
-        if (filters.city) {
-            result = result.filter((event) => event.city === filters.city);
-        }
-
-        // Price range filter
-        if (filters.minPrice !== undefined) {
-            result = result.filter((event) => (event.price || 0) >= filters.minPrice!);
-        }
-        if (filters.maxPrice !== undefined) {
-            result = result.filter((event) => (event.price || 0) <= filters.maxPrice!);
-        }
-
-        // Date range filter
-        if (filters.startDate) {
-            result = result.filter((event) =>
-                new Date(event.startDate) >= new Date(filters.startDate!)
-            );
-        }
-        if (filters.endDate) {
-            result = result.filter((event) =>
-                new Date(event.startDate) <= new Date(filters.endDate!)
-            );
-        }
-
-        // Sort
-        if (filters.sortBy === 'price') {
-            result.sort((a, b) => (a.price || 0) - (b.price || 0));
-        } else if (filters.sortBy === 'name') {
-            result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-        } else {
-            // Default: sort by date
-            result.sort((a, b) =>
-                new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-            );
-        }
-
-        setFilteredEvents(result);
-    }, [filters, events]);
+        fetchEvents(filters);
+    }, [filters, fetchEvents]);
 
     const handleFilterChange = (newFilters: EventFilters) => {
         setFilters(newFilters);
     };
 
-    if (loading) {
+    if (loading && events.length === 0) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary-50 to-primary-100">
                 <div className="text-center">
@@ -111,10 +63,10 @@ export function EventList() {
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="max-w-3xl mx-auto text-center">
                         <h1 className="text-5xl font-bold mb-4">
-                            Descubre Eventos Increíbles en el Bajío
+                            Descubre Eventos Increibles en el Bajio
                         </h1>
                         <p className="text-xl text-primary-100">
-                            Los mejores conciertos, festivales y experiencias en México, con foco en el Bajío
+                            Los mejores conciertos, festivales y experiencias en Mexico, con foco en el Bajio
                         </p>
                     </div>
                 </div>
@@ -122,23 +74,23 @@ export function EventList() {
 
             {/* Filters */}
             <div className="container mx-auto px-4 py-8">
-                <EventFiltersComponent onFilterChange={handleFilterChange} loading={false} />
+                <EventFiltersComponent onFilterChange={handleFilterChange} loading={loading} />
             </div>
 
             {/* Events Grid */}
             <div className="container mx-auto px-4 py-12">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-3xl font-bold text-gray-900">
-                        Próximos Eventos
+                        Proximos Eventos
                     </h2>
                     <div className="text-sm text-gray-600">
-                        {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''} disponible{filteredEvents.length !== 1 ? 's' : ''}
+                        {totalResults ?? events.length} evento{(totalResults ?? events.length) !== 1 ? 's' : ''} disponible{(totalResults ?? events.length) !== 1 ? 's' : ''}
                     </div>
                 </div>
 
-                {filteredEvents.length > 0 ? (
+                {events.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {filteredEvents.map((event) => (
+                        {events.map((event) => (
                             <Link
                                 key={event.id}
                                 to={`/events/${event.id}`}
@@ -158,7 +110,7 @@ export function EventList() {
                                                 </div>
                                                 {(event.isUnlisted || !event.isPublic) && (
                                                     <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold border border-orange-300">
-                                                        🔒 Oculto
+                                                        OCULTO
                                                     </div>
                                                 )}
                                             </div>
@@ -187,7 +139,7 @@ export function EventList() {
                                         </h3>
 
                                         <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                                            {event.description || 'Sin descripción disponible'}
+                                            {event.description || 'Sin descripcion disponible'}
                                         </p>
 
                                         <div className="space-y-2">
@@ -224,7 +176,6 @@ export function EventList() {
                                             )}
                                         </div>
 
-                                        {/* Precio desde */}
                                         {event.templates && event.templates.length > 0 && (
                                             <div className="mt-4 pt-4 border-t border-gray-100">
                                                 <div className="flex items-baseline">

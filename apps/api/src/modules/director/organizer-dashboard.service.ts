@@ -172,7 +172,6 @@ export class OrganizerDashboardService {
                         template: true,
                     },
                 },
-                payment: true,
             },
             orderBy: { createdAt: 'desc' },
             take: limit,

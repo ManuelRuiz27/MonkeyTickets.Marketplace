@@ -1,29 +1,82 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-function useQuery() {
-    const { search } = useLocation();
-    return new URLSearchParams(search);
-}
+import { apiClient } from '../../api/client';
 
 export function CheckoutSuccess() {
-    const query = useQuery();
+    const location = useLocation();
     const navigate = useNavigate();
+    const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
     const orderId = query.get('orderId');
     const rawStatus = (query.get('status') || 'completed').toLowerCase();
+    const state = (location.state as { ticketIds?: string[] } | null) ?? null;
 
     const isCompleted = rawStatus === 'completed' || rawStatus === 'approved';
     const isInReview = rawStatus === 'in_review' || rawStatus === 'pending' || rawStatus === 'in_process';
     const isFailed = rawStatus === 'failed' || rawStatus === 'rejected' || rawStatus === 'cancelled';
 
+    const presetTicketIds = state?.ticketIds ?? [];
+    const presetTicketKey = presetTicketIds.join(',');
+    const [ticketIds, setTicketIds] = useState<string[]>(presetTicketIds);
+    const [loadingTickets, setLoadingTickets] = useState(false);
+    const [ticketError, setTicketError] = useState('');
+    const [hasRequestedTickets, setHasRequestedTickets] = useState(Boolean(presetTicketIds.length));
+    const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+
+    useEffect(() => {
+        if (presetTicketIds.length) {
+            setTicketIds(presetTicketIds);
+            setHasRequestedTickets(true);
+        }
+    }, [presetTicketKey]);
+
+    useEffect(() => {
+        if (!orderId || !isCompleted || hasRequestedTickets) {
+            return;
+        }
+
+        let cancelled = false;
+        setHasRequestedTickets(true);
+        setLoadingTickets(true);
+        setTicketError('');
+
+        apiClient
+            .completeManualOrder(orderId)
+            .then((response) => {
+                if (cancelled) {
+                    return;
+                }
+
+                const ids = response?.tickets?.map((ticket) => ticket.id) ?? [];
+                setTicketIds(ids);
+                if (!ids.length) {
+                    setTicketError('Aun estamos generando tus boletos. Refresca en un momento o revisa tu correo.');
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setTicketError('No pudimos recuperar tus boletos. Intenta de nuevo o contacta al organizador.');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoadingTickets(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [orderId, isCompleted, hasRequestedTickets]);
+
     let title = 'Compra completada';
     let message =
-        'Tu pago fue aprobado. Recibirás tus boletos en minutos en el correo que registraste.';
+        'Tu pago fue aprobado. RecibirA­s tus boletos en minutos en el correo que registraste.';
     let iconBg = 'bg-green-100';
     let iconColor = 'text-green-600';
 
     if (isInReview) {
-        title = 'Pago en revisión';
+        title = 'Pago en revision';
         message =
             'Estamos revisando tu pago. Te avisaremos por correo en cuanto se confirme. Esto puede tomar unos minutos.';
         iconBg = 'bg-yellow-100';
@@ -31,7 +84,7 @@ export function CheckoutSuccess() {
     } else if (isFailed) {
         title = 'Pago no completado';
         message =
-            'Tu pago no pudo completarse. Si ves un cargo en tu estado de cuenta, se revertirá automáticamente por Mercado Pago.';
+            'Tu pago no pudo completarse. Si ves un cargo en tu estado de cuenta, se revisara manualmente y se te notificara.';
         iconBg = 'bg-red-100';
         iconColor = 'text-red-600';
     }
@@ -71,24 +124,47 @@ export function CheckoutSuccess() {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">{title}</h2>
                 <p className="text-gray-600 mb-6">{message}</p>
                 {orderId && (
-                    <div className="bg-gray-50 rounded-xl p-6 text-left space-y-2 mb-8">
-                        <p className="text-sm text-gray-500">Número de orden</p>
-                        <p className="font-mono text-gray-900 text-lg break-all">{orderId}</p>
+                    <div className="bg-gray-50 rounded-xl p-6 text-left space-y-4 mb-8">
+                        <div>
+                            <p className="text-sm text-gray-500">NA§mero de orden</p>
+                            <p className="font-mono text-gray-900 text-lg break-all">{orderId}</p>
+                        </div>
                         {isCompleted && (
-                            <p className="text-xs text-gray-500 mt-2">
-                                ¿No ves tus boletos? Revisa tu correo (y la carpeta de spam). Desde ese correo
-                                podrás reenviar los tickets o contactar soporte.
-                            </p>
+                            <div className="space-y-3">
+                                <p className="text-sm text-gray-600">Descarga tus boletos:</p>
+                                {ticketError && <p className="text-xs text-red-600">{ticketError}</p>}
+                                {loadingTickets && <p className="text-xs text-gray-500">Generando PDF...</p>}
+                                {!loadingTickets && ticketIds.length > 0 && (
+                                    <div className="space-y-2">
+                                        {ticketIds.map((ticketId, index) => (
+                                            <a
+                                                key={ticketId}
+                                                href={`${apiBaseUrl}/tickets/${ticketId}/pdf`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+                                            >
+                                                Descargar boleto {index + 1}
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
+                                {!loadingTickets && !ticketIds.length && !ticketError && (
+                                    <p className="text-xs text-gray-500">
+                                        Estamos generando tus boletos. En segundos podrA­s descargarlos o revisa tu correo.
+                                    </p>
+                                )}
+                            </div>
                         )}
                         {isInReview && (
                             <p className="text-xs text-gray-500 mt-2">
-                                Cuando el pago se confirme, te enviaremos automáticamente tus boletos al correo que
+                                Cuando el pago se confirme, te enviaremos automA­ticamente tus boletos al correo que
                                 registraste.
                             </p>
                         )}
                         {isFailed && (
                             <p className="text-xs text-gray-500 mt-2">
-                                Puedes intentar de nuevo desde la página del evento o usar otro método de pago.
+                                Puedes intentar de nuevo desde la pA­gina del evento o usar otro mActodo de pago.
                             </p>
                         )}
                     </div>
@@ -103,4 +179,3 @@ export function CheckoutSuccess() {
         </div>
     );
 }
-

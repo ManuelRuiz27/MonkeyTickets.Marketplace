@@ -78,7 +78,7 @@ Este script popula la base de datos con datos de prueba realistas para facilitar
 - **Evento**: Concierto Rock en Vivo
 - **Items**: 2x General ($500 c/u)
 - **Total**: $1,000
-- **Método**: Tarjeta (OPENPAY)
+- **Método**: Modo prueba (sin pasarela)
 - **Status**: PAID
 - **Tickets**: 2 generados (ambos sin usar)
 
@@ -87,7 +87,7 @@ Este script popula la base de datos con datos de prueba realistas para facilitar
 - **Evento**: Concierto Rock en Vivo
 - **Items**: 2x VIP ($1,500 c/u)
 - **Total**: $3,000
-- **Método**: Tarjeta (OPENPAY)
+- **Método**: Modo prueba (sin pasarela)
 - **Status**: PAID
 - **Tickets**: 2 generados (1 sin usar, 1 ya usado - check-in hecho)
 
@@ -96,7 +96,7 @@ Este script popula la base de datos con datos de prueba realistas para facilitar
 - **Evento**: Festival de Jazz
 - **Items**: 2x General ($800 c/u)
 - **Total**: $1,600
-- **Método**: OXXO
+- **Método**: Manual (pendiente)
 - **Status**: PENDING (esperando pago)
 - **Tickets**: 0 (se generarán al confirmar pago)
 

@@ -12,12 +12,6 @@ const IS_SMTP_CONFIGURED = Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_P
 const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || SMTP_USER || 'no-reply@monomarket.mx';
 const DEFAULT_FROM_NAME = process.env.EMAIL_FROM_NAME || 'MonoMarket';
 
-interface OrderSummary {
-    id: string;
-    event: { title: string };
-    buyer: { email: string; name: string };
-}
-
 export interface SendTicketsEmailParams {
     orderId?: string;
     to: string;

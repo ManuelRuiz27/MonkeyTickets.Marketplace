@@ -15,8 +15,8 @@ export class EventsController {
     constructor(private readonly eventsService: EventsService) { }
 
     @Get()
-    async findAll() {
-        return this.eventsService.findAllPublic();
+    async findAll(@Query() filters: EventFiltersDto) {
+        return this.eventsService.findAllPublic(filters);
     }
 
     /**
@@ -25,7 +25,7 @@ export class EventsController {
      */
     @Get('search')
     async searchEvents(@Query() filters: EventFiltersDto) {
-        return this.eventsService.findPublicWithFilters(filters);
+        return this.eventsService.findAllPublic(filters);
     }
 
     /**

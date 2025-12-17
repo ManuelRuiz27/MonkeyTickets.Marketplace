@@ -142,7 +142,6 @@ export class DirectorDashboardService {
                         template: true,
                     },
                 },
-                payment: true,
                 tickets: true,
                 emailLogs: true,
             },
@@ -177,4 +176,3 @@ export class DirectorDashboardService {
         });
     }
 }
-

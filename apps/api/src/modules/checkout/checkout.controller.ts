@@ -29,6 +29,11 @@ export class CheckoutController {
         return this.checkoutService.getCheckoutOrderSummary(id);
     }
 
+    @Post('orders/:id/manual-complete')
+    async completeManualOrder(@Param('id') id: string) {
+        return this.checkoutService.completeManualOrder(id);
+    }
+
     // Legacy support while frontend finishes migration.
     @Post()
     async createLegacySession(

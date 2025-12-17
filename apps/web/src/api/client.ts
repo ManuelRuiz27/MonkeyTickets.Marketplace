@@ -7,18 +7,6 @@ type ApiTicketTemplate = ApiSchemas['TicketTemplate'];
 type ApiFeePlan = ApiSchemas['FeePlan'];
 type ApiOrder = ApiSchemas['Order'];
 type ApiPagination = ApiSchemas['Pagination'];
-type OpenpayChargeRequest = ApiSchemas['OpenpayChargeRequest'];
-type OpenpayChargeResponse = ApiSchemas['OpenpayChargeResponse'];
-type MercadoPagoPreferenceRequest = ApiSchemas['MercadoPagoPreferenceRequest'];
-type MercadoPagoPreferenceResponse = ApiSchemas['MercadoPagoPreferenceResponse'];
-type MercadoPagoPayerInput = {
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    identificationType?: string;
-    identificationNumber?: string;
-};
 
 export type CheckoutSessionResponse = {
     orderId: string;
@@ -38,12 +26,9 @@ export type CheckoutOrderSummary = {
     };
 };
 
-export type PaymentResponse = {
-    paymentId: string;
-    providerPaymentId: string;
-    status: 'PENDING' | 'COMPLETED' | 'FAILED';
-    redirectUrl?: string;
-    instructions?: string;
+export type ManualOrderCompletionResponse = {
+    orderId: string;
+    tickets: { id: string }[];
 };
 
 export type OrganizerEventInput = ApiSchemas['EventInput'] & {
@@ -170,8 +155,30 @@ class ApiClient {
     }
 
     // Public events
-    public async getEvents() {
-        return this.request<{ data?: ApiEvent[]; pagination?: ApiPagination }>('/public/events');
+    public async getEvents(params?: {
+        search?: string;
+        category?: string;
+        city?: string;
+        minPrice?: number;
+        maxPrice?: number;
+        startDate?: string;
+        endDate?: string;
+        page?: number;
+        limit?: number;
+    }) {
+        const query: Record<string, any> = {};
+        if (params) {
+            if (params.search) query.search = params.search;
+            if (params.category) query.category = params.category;
+            if (params.city) query.city = params.city;
+            if (params.minPrice !== undefined) query.priceMin = params.minPrice;
+            if (params.maxPrice !== undefined) query.priceMax = params.maxPrice;
+            if (params.startDate) query.dateFrom = params.startDate;
+            if (params.endDate) query.dateTo = params.endDate;
+            if (params.page) query.page = params.page;
+            if (params.limit) query.limit = params.limit;
+        }
+        return this.request<{ data?: ApiEvent[]; pagination?: ApiPagination }>('/public/events', {}, { query });
     }
 
     public async getEventById(id: string) {
@@ -201,67 +208,9 @@ class ApiClient {
         return this.request<CheckoutOrderSummary>(`/checkout/orders/${orderId}`);
     }
 
-    public async payOrder(data: {
-        orderId: string;
-        provider: 'mercadopago';
-        method: 'card' | 'google_pay' | 'apple_pay' | 'spei' | 'oxxo';
-        token: string;
-        installments?: number;
-    }) {
-        return this.request<PaymentResponse>('/payments/pay', {
+    public async completeManualOrder(orderId: string) {
+        return this.request<ManualOrderCompletionResponse>(`/checkout/orders/${orderId}/manual-complete`, {
             method: 'POST',
-            body: JSON.stringify(data),
-        });
-    }
-
-    public async createMercadoPagoPayment(data: {
-        orderId: string;
-        token: string;
-        issuerId?: string;
-        paymentMethodId?: string;
-        installments?: number;
-        payer: MercadoPagoPayerInput;
-    }) {
-        return this.request<PaymentResponse>('/payments/pay', {
-            method: 'POST',
-            body: JSON.stringify({
-                orderId: data.orderId,
-                provider: 'mercadopago' as const,
-                method: 'card' as const,
-                token: data.token,
-                issuerId: data.issuerId,
-                paymentMethodId: data.paymentMethodId,
-                installments: data.installments,
-                payer: data.payer,
-            }),
-        });
-    }
-
-    public async createOpenpayCharge(body: OpenpayChargeRequest) {
-        return this.request<OpenpayChargeResponse>('/payments/openpay/charge', {
-            method: 'POST',
-            body: JSON.stringify(body),
-        });
-    }
-
-    public async createMercadoPagoPreference(body: MercadoPagoPreferenceRequest) {
-        return this.request<MercadoPagoPreferenceResponse>('/payments/mercadopago/preference', {
-            method: 'POST',
-            body: JSON.stringify(body),
-        });
-    }
-
-    public async createOpenpaySpeiCharge(body: any) {
-        return this.request<any>('/payments/openpay/spei', {
-            method: 'POST',
-            body: JSON.stringify(body),
-        });
-    }
-
-    public async createOpenpayOxxoCharge(body: any) {
-        return this.request<any>('/payments/openpay/oxxo', {
-            method: 'POST',
-            body: JSON.stringify(body),
         });
     }
 
@@ -538,22 +487,170 @@ class ApiClient {
         });
     }
 
-    // Director - logs (operación)
-    public async getDirectorWebhookLogs(query?: { gateway?: string; limit?: number }) {
-        return this.request<any[]>(
-            '/director/logs/webhooks',
-            {},
-            { query },
-        );
+    // RP - Gestión de RPs (Organizer)
+    public async createRP(eventId: string, data: { name: string; email: string; phone?: string; maxTickets?: number }) {
+        return this.request<{
+            id: string;
+            code: string;
+            name: string;
+            email: string;
+            phone?: string;
+            maxTickets?: number;
+            isActive: boolean;
+            shareLink: string;
+        }>(`/organizer/events/${eventId}/rps`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }, { organizerScope: true });
     }
 
-    public async getDirectorLegalLogs(query?: { action?: string; limit?: number }) {
-        return this.request<any[]>(
-            '/director/logs/legal',
-            {},
-            { query },
-        );
+    public async listRPs(eventId: string) {
+        return this.request<Array<{
+            id: string;
+            name: string;
+            email: string;
+            phone?: string;
+            code: string;
+            isActive: boolean;
+            maxTickets?: number;
+            ticketsGenerated: number;
+            ticketsUsed: number;
+            conversionRate: number;
+            shareLink: string;
+            createdAt: string;
+        }>>(`/organizer/events/${eventId}/rps`, {}, { organizerScope: true });
     }
+
+    public async updateRP(rpId: string, data: { name?: string; email?: string; phone?: string; maxTickets?: number | null; isActive?: boolean }) {
+        return this.request(`/organizer/rps/${rpId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }, { organizerScope: true });
+    }
+
+    public async deleteRP(rpId: string) {
+        return this.request<{ message: string }>(`/organizer/rps/${rpId}`, {
+            method: 'DELETE',
+        }, { organizerScope: true });
+    }
+
+    public async getRPMetrics(rpId: string) {
+        return this.request<{
+            rp: {
+                id: string;
+                name: string;
+                code: string;
+                ticketsGenerated: number;
+                ticketsUsed: number;
+                conversionRate: number;
+            };
+            tickets: Array<{
+                id: string;
+                status: string;
+                guestName: string;
+                guestEmail: string;
+                usedAt?: string;
+                createdAt: string;
+            }>;
+        }>(`/organizer/rps/${rpId}/metrics`, {}, { organizerScope: true });
+    }
+
+    public async getRPDashboard(eventId: string) {
+        return this.request<{
+            event: { id: string; title: string };
+            summary: {
+                totalRPs: number;
+                activeRPs: number;
+                totalTicketsGenerated: number;
+                totalTicketsUsed: number;
+                avgConversion: number;
+                noShowRate: number;
+            };
+            rps: Array<{
+                id: string;
+                name: string;
+                code: string;
+                email: string;
+                phone?: string;
+                isActive: boolean;
+                maxTickets?: number;
+                ticketsGenerated: number;
+                ticketsUsed: number;
+                conversionRate: number;
+                ranking: number;
+                createdAt: string;
+            }>;
+        }>(`/organizer/events/${eventId}/rps/dashboard`, {}, { organizerScope: true });
+    }
+
+    public async exportRPReport(eventId: string) {
+        return this.request(`/organizer/events/${eventId}/rps/dashboard/export`, {}, { organizerScope: true });
+    }
+
+    // RP - Endpoints públicos
+    public async getRPInfo(rpCode: string) {
+        return this.request<{
+            rp: {
+                name: string;
+                code: string;
+                isActive: boolean;
+                ticketsGenerated: number;
+                maxTickets?: number;
+            };
+            event: {
+                id: string;
+                title: string;
+                description?: string;
+                startDate: string;
+                endDate?: string;
+                venue?: string;
+                address?: string;
+                city?: string;
+                coverImage?: string;
+            };
+        }>(`/rp/${rpCode}/info`);
+    }
+
+    public async generateRPTicket(rpCode: string, data: { name: string; email: string; phone?: string }) {
+        const headers = this.buildHeaders();
+        const response = await fetch(`${API_BASE_URL}/rp/${rpCode}/generate-ticket`, {
+            method: 'POST',
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            const errorMessage = errorData?.message || response.statusText;
+            throw new Error(Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage);
+        }
+
+        // Retorna el PDF como blob
+        return response.blob();
+    }
+
+    public async getRPTickets(rpCode: string) {
+        return this.request<{
+            rp: {
+                name: string;
+                code: string;
+                ticketsGenerated: number;
+                ticketsUsed: number;
+            };
+            tickets: Array<{
+                id: string;
+                status: string;
+                guestName: string;
+                guestEmail: string;
+                usedAt?: string;
+                createdAt: string;
+            }>;
+        }>(`/rp/${rpCode}/tickets`);
+    }
+
 }
 
 export const apiClient = new ApiClient();

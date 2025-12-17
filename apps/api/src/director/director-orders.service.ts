@@ -58,7 +58,6 @@ export class DirectorOrdersService {
                             organizer: true,
                         },
                     },
-                    payment: true,
                 },
             }),
         ]);
@@ -81,7 +80,6 @@ export class DirectorOrdersService {
                 event: {
                     include: { organizer: true },
                 },
-                payment: true,
                 tickets: true,
                 items: {
                     include: {

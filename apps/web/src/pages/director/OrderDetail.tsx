@@ -6,7 +6,6 @@ import { components as ApiComponents } from '@monomarket/contracts';
 type ApiOrder = ApiComponents['schemas']['Order'] & {
     buyer?: ApiComponents['schemas']['Buyer'];
     event?: ApiComponents['schemas']['Event'];
-    payment?: ApiComponents['schemas']['Payment'];
     tickets?: ApiComponents['schemas']['Ticket'][];
 };
 
@@ -113,12 +112,12 @@ export function DirectorOrderDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                         <p>Total: <span className="font-semibold text-gray-900">${Number(order.total || 0).toLocaleString('es-MX')} {order.currency || 'MXN'}</span></p>
                         <p>Estado: <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{order.status}</span></p>
-                        <p>Pago: {order.payment?.gateway}</p>
-                        <p>Referencia: {order.payment?.paymentMethod}</p>
+                        <p>Metodo: <span className="font-medium text-gray-800">Confirmacion manual</span></p>
+                        <p>Referencia: <span className="text-gray-700">{order.id}</span></p>
                         <p>Creado: {order.createdAt ? new Date(order.createdAt).toLocaleString() : 'N/A'}</p>
                         <p>
                             Pagado:{' '}
-                            {(order.payment?.status || '').toString().toUpperCase() === 'COMPLETED' && order.paidAt
+                            {order.paidAt
                                 ? new Date(order.paidAt).toLocaleString()
                                 : 'Pendiente'}
                         </p>

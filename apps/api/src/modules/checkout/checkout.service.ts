@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { LegalService } from '../../legal/legal.service';
 import { ReservationService } from './reservation.service';
+import { EmailService } from '../email/email.service';
 
 const CHECKOUT_SESSION_TTL_MINUTES = 30;
 
@@ -20,6 +21,7 @@ export class CheckoutService {
         private prisma: PrismaService,
         private legalService: LegalService,
         private reservationService: ReservationService,
+        private emailService: EmailService,
     ) { }
 
     async createCheckoutSession(data: CreateCheckoutSessionDto, context?: CheckoutSessionContext) {
@@ -248,5 +250,120 @@ export class CheckoutService {
                 phone: order.buyer.phone ?? undefined,
             },
         };
+    }
+
+    async completeManualOrder(orderId: string) {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                items: true,
+                tickets: {
+                    select: { id: true },
+                },
+            },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        if (order.status === 'PAID') {
+            return {
+                orderId: order.id,
+                tickets: order.tickets.map((ticket) => ({ id: ticket.id })),
+            };
+        }
+
+        if (order.status !== 'PENDING') {
+            throw new BadRequestException('Order cannot be completed');
+        }
+
+        if (!order.items.length) {
+            throw new BadRequestException('Order has no ticket items');
+        }
+
+        const templateIds = order.items.map((item) => item.templateId);
+        const templates = await this.prisma.ticketTemplate.findMany({
+            where: { id: { in: templateIds } },
+            select: { id: true, quantity: true, sold: true, name: true },
+        });
+        const templateMap = new Map(templates.map((template) => [template.id, template]));
+
+        if (templates.length !== templateIds.length) {
+            throw new BadRequestException('Ticket templates mismatch');
+        }
+
+        for (const item of order.items) {
+            const template = templateMap.get(item.templateId);
+            if (!template) {
+                throw new BadRequestException('Invalid template for this order');
+            }
+            const remaining = template.quantity - template.sold;
+            if (remaining < item.quantity) {
+                throw new BadRequestException(
+                    `No hay boletos suficientes para "${template.name ?? template.id}".`,
+                );
+            }
+        }
+
+        const paidAt = new Date();
+        const createdTickets = await this.prisma.$transaction(async (tx) => {
+            const tickets = [];
+
+            for (const item of order.items) {
+                await tx.ticketTemplate.update({
+                    where: { id: item.templateId },
+                    data: { sold: { increment: item.quantity } },
+                });
+
+                for (let i = 0; i < item.quantity; i++) {
+                    const ticket = await tx.ticket.create({
+                        data: {
+                            orderId: order.id,
+                            templateId: item.templateId,
+                            qrCode: this.generateTicketCode(order.id, item.templateId),
+                        },
+                        select: { id: true },
+                    });
+                    tickets.push(ticket);
+                }
+            }
+
+            await tx.order.update({
+                where: { id: order.id },
+                data: {
+                    status: 'PAID',
+                    paidAt,
+                    reservedUntil: null,
+                },
+            });
+
+            return tickets;
+        });
+
+        try {
+            await this.reservationService.releaseReservation(order.id);
+        } catch (error: any) {
+            this.logger.warn(`Failed to release reservation for ${order.id}: ${error?.message}`);
+        }
+
+        try {
+            await this.emailService.sendTicketsEmail(order.id);
+        } catch (error: any) {
+            this.logger.error(`Failed to send tickets for order ${order.id}: ${error?.message}`);
+        }
+
+        return {
+            orderId: order.id,
+            tickets: createdTickets,
+        };
+    }
+
+    private generateTicketCode(orderId: string, templateId: string) {
+        const prefix = 'MM';
+        const orderSegment = orderId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
+        const templateSegment = templateId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase();
+        const randomSegment = Math.random().toString(36).slice(2, 8).toUpperCase();
+        return `${prefix}-${orderSegment}${templateSegment}-${Date.now().toString(36).toUpperCase()}${randomSegment}`;
     }
 }

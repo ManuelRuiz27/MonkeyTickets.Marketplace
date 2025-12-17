@@ -1,92 +1,82 @@
-# Modelo Operativo del MVP
+﻿# Modelo Operativo del MVP
 
-El sistema funciona como un **Marketplace público** donde organizadores publican eventos y compradores adquieren boletos como invitados (sin necesidad de cuenta).
+El sistema funciona como un **Marketplace pÃºblico** donde organizadores publican eventos y compradores adquieren boletos como invitados (sin necesidad de cuenta).
 
 ## 1. Modelos Activos y Desactivados
 
 ### Modelos activos en MVP:
-- **Modelo A** — Eventos Públicos
-- **Modelo B** — Eventos Ocultos/Unlisted (link directo)
+- **Modelo A** â€” Eventos PÃºblicos
+- **Modelo B** â€” Eventos Ocultos/Unlisted (link directo)
 
 ### Modelo desactivado:
-- ❌ **Pre-campañas (Modelo C)**
+- âŒ **Pre-campaÃ±as (Modelo C)**
 
 ---
 
-## 2. Módulos incluidos en el MVP
+## 2. MÃ³dulos incluidos en el MVP
 
-### 2.1. Módulo del Organizador (Nivel A)
+### 2.1. MÃ³dulo del Organizador (Nivel A)
 
 El organizador puede:
 
-#### Gestión de Eventos
-- Crear evento (nombre, fecha, horario, lugar, capacidad mínima 50 boletos)
+#### GestiÃ³n de Eventos
+- Crear evento (nombre, fecha, horario, lugar, capacidad mÃ­nima 50 boletos)
 - Editar evento
 - Publicar/Despublicar evento
 - Ver listado de eventos
 
 #### Boletos
 - Crear tipos de boletos (general, VIP, etc.)
-- Definir precios + cargos por servicio aplicados automáticamente
+- Definir precios + cargos por servicio aplicados automÃ¡ticamente
 - Configurar capacidad/stock
 - Subir plantilla PDF personalizada (opcional), si no usa la plantilla default
 - Ver ventas y compradores
 
 #### Ventas
-- Ver detalle de órdenes
+- Ver detalle de Ã³rdenes
 - Descargar boletos PDF del comprador (para reenviar manualmente si lo requiere)
 
-#### QR dinámico integrado
+#### QR dinÃ¡mico integrado
 - QR firmado con JWT
 - Incluye validaciones antifraude
-- QR se valida desde módulo Staff
+- QR se valida desde mÃ³dulo Staff
 
 ---
 
-### 2.2. Módulo del Comprador (Invitado)
+### 2.2. MÃ³dulo del Comprador (Invitado)
 
 **No necesita cuenta.**
 
 #### Checkout
 - Seleccionar boletos
-- Añadir datos requeridos:
+- AÃ±adir datos requeridos:
   - Nombre
   - Email
-  - Teléfono
+  - TelÃ©fono
 - Mostrar resumen del pedido (backend calcula totales)
 
-#### Pasarela de Pagos (MVP)
-**OpenPay** como proveedor principal:
-- Tarjeta
-- SPEI
-- Pago en OXXO
-
-**Mercado Pago** solo para:
-- Google Pay
-- Apple Pay
-
-#### Entrega de Boletos
+#### Flujo de pago (modo prueba)\n- No hay pasarela integrada en este modo.\n- El checkout reserva los boletos y el organizador confirma o cancela manualmente segun el pago recibido fuera de la plataforma.\n\n#### Entrega de Boletos\n
 - Descarga desde navegador
-- Envío por email
+- EnvÃ­o por email
 - **Sin WhatsApp. Sin SMS.**
 
 ---
 
-### 2.3. Módulo Staff (Control de Accesos)
+### 2.3. MÃ³dulo Staff (Control de Accesos)
 
-Acceso por token único.
+Acceso por token Ãºnico.
 
 Incluye:
 - Pantalla de escaneo QR
-- Validación en tiempo real contra backend
-- Señales visuales:
-  - Verde → válido
-  - Rojo → inválido o repetido
-- Historial básico de escaneos en la misma sesión
+- ValidaciÃ³n en tiempo real contra backend
+- SeÃ±ales visuales:
+  - Verde â†’ vÃ¡lido
+  - Rojo â†’ invÃ¡lido o repetido
+- Historial bÃ¡sico de escaneos en la misma sesiÃ³n
 
 ---
 
-### 2.4. Módulo Director (Superadmin)
+### 2.4. MÃ³dulo Director (Superadmin)
 
 Con controles globales.
 
@@ -100,15 +90,15 @@ Con controles globales.
   - Eventos activos
   - Organizaciones activas
 - Reenviar boletos por email
-- Revisar logs de órdenes y correos
+- Revisar logs de Ã³rdenes y correos
 
-**Sin préstamos. Sin créditos.**
+**Sin prÃ©stamos. Sin crÃ©ditos.**
 
 ---
 
 ## 3. Funcionamiento de los Boletos
 
-Cada boleto es un **PDF generado automáticamente**.
+Cada boleto es un **PDF generado automÃ¡ticamente**.
 
 ### Plantilla:
 - Default del sistema o la plantilla subida por el organizador
@@ -125,16 +115,16 @@ Cada boleto es un **PDF generado automáticamente**.
 
 ## 4. Seguridad
 
-### QR dinámico firmado con expiración
+### QR dinÃ¡mico firmado con expiraciÃ³n
 
 ### Validaciones antifraude:
 - Firma JWT
-- Prevención de duplicados
+- PrevenciÃ³n de duplicados
 - Rate limit en `/scan/validate`
 
 ### Checkout antibots:
 - CAPTCHAs opcionales
-- Reservación temporal 2–5 min para evitar overselling
+- ReservaciÃ³n temporal 2â€“5 min para evitar overselling
 
 ---
 
@@ -142,29 +132,29 @@ Cada boleto es un **PDF generado automáticamente**.
 
 ### Cargos por servicio
 ```
-cargo_servicio = comisión_base + impuestos
+cargo_servicio = comisiÃ³n_base + impuestos
 ```
 Ajustable por Director.
 
-### Cortesías (MVP)
+### CortesÃ­as (MVP)
 
 Se mantienen, pero simples:
-- Eventos <2500 personas → 5 cortesías
-- Eventos ≥2500 → 330 cortesías
-- Cortesías adicionales pagan solo el cargo de servicio
+- Eventos <2500 personas â†’ 5 cortesÃ­as
+- Eventos â‰¥2500 â†’ 330 cortesÃ­as
+- CortesÃ­as adicionales pagan solo el cargo de servicio
 - No pasan por pasarela
 - Generan QR y PDF igual que un boleto pagado
 
 ---
 
-## 6. Tecnología (MVP)
+## 6. TecnologÃ­a (MVP)
 
 ### Backend:
 - NestJS (Fastify)
 - PostgreSQL
 - Prisma ORM
-- Redis para locks y colas básicas
-- OpenPay + MercadoPago
+- Redis para locks y colas bÃ¡sicas
+- Pagos manuales (sin pasarela)
 
 ### Frontend:
 - React con Vite
@@ -178,54 +168,55 @@ Se mantienen, pero simples:
 Conscientemente simplificado:
 
 ### No incluye:
-- ❌ WhatsApp
-- ❌ Landings animadas
-- ❌ Flipbook premium
-- ❌ Préstamos
-- ❌ Ledger contable
-- ❌ Afiliados
-- ❌ Multi-organizador avanzado
+- âŒ WhatsApp
+- âŒ Landings animadas
+- âŒ Flipbook premium
+- âŒ PrÃ©stamos
+- âŒ Ledger contable
+- âŒ Afiliados
+- âŒ Multi-organizador avanzado
 
 ### No se genera:
-- ❌ Reportes PDF avanzados
-- ❌ Estadísticas profundas
-- ❌ Embudos de conversión
-- ❌ Notificaciones push
+- âŒ Reportes PDF avanzados
+- âŒ EstadÃ­sticas profundas
+- âŒ Embudos de conversiÃ³n
+- âŒ Notificaciones push
 
 **Todo esto queda para V1.1 o V2.**
 
 ---
 
-## 8. Checklist del MVP (para validar que está completo)
+## 8. Checklist del MVP (para validar que estÃ¡ completo)
 
-### ✅ Organizador
+### âœ… Organizador
 - [ ] Crear/editar/publicar eventos
 - [ ] Crear tipos de boleto
 - [ ] Subir plantilla PDF opcional
 - [ ] Ver ventas y compradores
 - [ ] Descargar boletos
 
-### ✅ Checkout
+### âœ… Checkout
 - [ ] Calcular totales en backend
-- [ ] Procesar pagos (OpenPay + MercadoPago)
-- [ ] Descarga instantánea de boletos
-- [ ] Envío por email
+- [ ] Procesar pagos (Pagos manuales (sin pasarela))
+- [ ] Descarga instantÃ¡nea de boletos
+- [ ] EnvÃ­o por email
 
-### ✅ Staff
+### âœ… Staff
 - [ ] Scan QR
-- [ ] Validación en tiempo real
-- [ ] Historial básico
+- [ ] ValidaciÃ³n en tiempo real
+- [ ] Historial bÃ¡sico
 
-### ✅ Director
+### âœ… Director
 - [ ] Crear organizadores
 - [ ] Configurar comisiones
 - [ ] Dashboard global
-- [ ] Reenvío de boletos
+- [ ] ReenvÃ­o de boletos
 
-### ✅ Core
-- [ ] Reservación 2–5 min
+### âœ… Core
+- [ ] ReservaciÃ³n 2â€“5 min
 - [ ] QR firmado
 - [ ] Anti-duplicados
 - [ ] Base de datos completa
 - [ ] PDF generador
 - [ ] Email delivery
+

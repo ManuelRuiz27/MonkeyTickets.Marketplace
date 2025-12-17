@@ -35,10 +35,6 @@ INSERT OR IGNORE INTO orders (id, event_id, buyer_id, status, total, platform_fe
 INSERT OR IGNORE INTO order_items (id, order_id, template_id, quantity, unit_price) VALUES
 ('item-001', 'order-001', 'template-001', 2, 350.00);
 
--- Insert sample payment
-INSERT OR IGNORE INTO payments (id, order_id, gateway, amount, status, gateway_transaction_id, payment_method) VALUES
-('payment-001', 'order-001', 'MERCADOPAGO', 700.00, 'COMPLETED', 'mp_txn_12345', 'credit_card');
-
 -- Insert sample tickets
 INSERT OR IGNORE INTO tickets (id, order_id, template_id, qr_code, status) VALUES
 ('ticket-001', 'order-001', 'template-001', 'QR-CONCIERTO-001-A', 'VALID'),

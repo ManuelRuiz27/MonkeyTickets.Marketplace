@@ -10,7 +10,6 @@ async function main() {
     console.log('🗑️  Clearing existing data...');
     await prisma.ticket.deleteMany();
     await prisma.orderItem.deleteMany();
-    await prisma.payment.deleteMany();
     await prisma.order.deleteMany();
     await prisma.ticketTemplate.deleteMany();
     await prisma.event.deleteMany();
@@ -267,16 +266,6 @@ async function main() {
         },
     });
 
-    await prisma.payment.create({
-        data: {
-            orderId: order1.id,
-            gateway: 'OPENPAY',
-            gatewayTransactionId: 'op_tx_123456',
-            status: 'COMPLETED',
-            amount: 1000,
-        },
-    });
-
     // Crear tickets para orden pagada
     await prisma.ticket.createMany({
         data: [
@@ -316,16 +305,6 @@ async function main() {
             templateId: template1VIP.id,
             quantity: 2,
             unitPrice: 1500,
-        },
-    });
-
-    await prisma.payment.create({
-        data: {
-            orderId: order2.id,
-            gateway: 'OPENPAY',
-            gatewayTransactionId: 'op_tx_789012',
-            status: 'COMPLETED',
-            amount: 3000,
         },
     });
 

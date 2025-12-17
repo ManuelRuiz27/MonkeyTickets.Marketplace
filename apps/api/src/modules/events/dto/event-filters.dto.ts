@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsDateString, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsNumber, Min, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
@@ -36,4 +36,17 @@ export class EventFiltersDto {
     @IsOptional()
     @IsString()
     search?: string; // Búsqueda por título/descripción
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    page?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    limit?: number;
+
 }

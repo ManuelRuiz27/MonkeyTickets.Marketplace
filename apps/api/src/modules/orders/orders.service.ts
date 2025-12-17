@@ -5,14 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class OrdersService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async listByEvent(organizerId: string, eventId: string) {
+    async listByEvent(organizerId: string, eventId: string): Promise<any[]> {
         await this.ensureEventOwnership(organizerId, eventId);
 
         return this.prisma.order.findMany({
             where: { eventId },
             include: {
                 buyer: true,
-                payment: true,
                 items: {
                     include: { template: true },
                 },
@@ -21,7 +20,7 @@ export class OrdersService {
         });
     }
 
-    async getByIdForOrganizer(orderId: string, organizerId: string) {
+    async getByIdForOrganizer(orderId: string, organizerId: string): Promise<any> {
         const order = await this.prisma.order.findFirst({
             where: {
                 id: orderId,
@@ -33,7 +32,6 @@ export class OrdersService {
                 buyer: true,
                 event: true,
                 tickets: true,
-                payment: true,
                 items: {
                     include: { template: true },
                 },

@@ -1,37 +1,25 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ReCAPTCHA from 'react-google-recaptcha';
 import CheckoutSummary from '../../components/checkout/CheckoutSummary';
-import PaymentMethods, {
-    PAYMENT_METHODS,
-    PaymentGateway,
-    PaymentMethod,
-} from '../../components/checkout/PaymentMethods';
 import CountdownTimer from '../../components/checkout/CountdownTimer';
 import { apiClient, CheckoutOrderSummary } from '../../api/client';
-import { MercadoPagoButton } from '../../features/payments/components/MercadoPagoButton';
-import { MercadoPagoCard } from '../../components/payments/MercadoPagoCard';
-import { SpeiPaymentButton } from '../../features/payments/components/SpeiPaymentButton';
-import { OxxoPaymentButton } from '../../features/payments/components/OxxoPaymentButton';
-import { OpenpayCardPayment } from '../../features/payments/components/OpenpayCardPayment';
 
 export function Checkout() {
     const { eventId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const { templateId, quantity = 1, eventTitle, templateName, price, eventDate, eventVenue } =
-        location.state || {};
+        (location.state as Record<string, any>) || {};
 
     const [checkoutSession, setCheckoutSession] = useState<any>(null);
-    const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>('mercadopago');
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(
-        PAYMENT_METHODS[0],
-    );
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [orderSummary, setOrderSummary] = useState<CheckoutOrderSummary | null>(null);
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [manualCompleteError, setManualCompleteError] = useState('');
+    const [finalizingManualOrder, setFinalizingManualOrder] = useState(false);
     const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
     const isRecaptchaEnabled = Boolean(recaptchaSiteKey);
 
@@ -39,7 +27,6 @@ export function Checkout() {
         register,
         handleSubmit,
         formState: { errors },
-        getValues,
     } = useForm();
 
     useEffect(() => {
@@ -61,20 +48,42 @@ export function Checkout() {
                 captchaToken: isRecaptchaEnabled ? captchaToken || undefined : undefined,
             });
             setCheckoutSession(session);
+            setManualCompleteError('');
             const summary = await apiClient.getCheckoutOrder(session.orderId);
             setOrderSummary(summary);
         } catch (err: any) {
             const rawMessage = (err?.message as string | undefined)?.toLowerCase();
             let friendly = 'No pudimos iniciar tu checkout. Intenta nuevamente en unos minutos.';
             if (rawMessage?.includes('network')) {
-                friendly = 'Hay un problema de conexión. Revisa tu internet e inténtalo de nuevo.';
+                friendly = 'Hay un problema de conexion. Revisa tu internet e intentalo de nuevo.';
             } else if (rawMessage?.includes('order already paid')) {
-                friendly =
-                    'Esta orden ya fue pagada. Revisa tu correo para encontrar tus boletos.';
+                friendly = 'Esta orden ya fue pagada. Revisa tu correo para encontrar tus boletos.';
             }
             setError(friendly);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const finalizeManualOrder = async () => {
+        if (!checkoutSession?.orderId) {
+            return;
+        }
+        setManualCompleteError('');
+        setFinalizingManualOrder(true);
+        try {
+            const manualResult = await apiClient.completeManualOrder(checkoutSession.orderId);
+            const ticketIds = manualResult?.tickets?.map((ticket) => ticket.id) ?? [];
+            navigate(`/checkout/success?orderId=${checkoutSession.orderId}&status=completed`, {
+                state: { ticketIds },
+            });
+        } catch (err: any) {
+            const message =
+                (err?.message as string | undefined) ||
+                'No pudimos confirmar tu compra. Intenta de nuevo en unos segundos.';
+            setManualCompleteError(message);
+        } finally {
+            setFinalizingManualOrder(false);
         }
     };
 
@@ -99,14 +108,6 @@ export function Checkout() {
         ],
         [templateName, price, quantity],
     );
-
-    const formValues = getValues();
-    const payerData = {
-        firstName: formValues?.firstName,
-        lastName: formValues?.lastName,
-        email: formValues?.email,
-        phone: formValues?.phone,
-    };
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">
@@ -196,7 +197,7 @@ export function Checkout() {
                                                 className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
                                             />
                                             {errors.email && (
-                                                <span className="text-red-500 text-xs">Email inválido</span>
+                                                <span className="text-red-500 text-xs">Email invalido</span>
                                             )}
                                         </div>
                                     </div>
@@ -206,7 +207,7 @@ export function Checkout() {
                                             htmlFor="phone"
                                             className="block text-sm font-medium text-gray-700"
                                         >
-                                            Teléfono
+                                            Telefono
                                         </label>
                                         <div className="mt-1">
                                             <input
@@ -214,10 +215,10 @@ export function Checkout() {
                                                 id="phone"
                                                 placeholder="5512345678"
                                                 {...register('phone', {
-                                                    required: 'Teléfono requerido',
+                                                    required: 'Telefono requerido',
                                                     pattern: {
                                                         value: /^\d{10}$/,
-                                                        message: 'Debe ser un teléfono de 10 dígitos',
+                                                        message: 'Debe ser un telefono de 10 digitos',
                                                     },
                                                 })}
                                                 className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
@@ -247,98 +248,44 @@ export function Checkout() {
                                             disabled={loading || (isRecaptchaEnabled && !captchaToken)}
                                             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                                         >
-                                            {loading ? 'Procesando...' : 'Continuar al pago'}
+                                            {loading ? 'Procesando...' : 'Continuar al siguiente paso'}
                                         </button>
                                     </div>
                                 </form>
                             ) : (
-                                <div className="mt-6">
-                                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                                        Selecciona tu método de pago
+                                <div className="mt-6 space-y-4">
+                                    <h3 className="text-lg font-medium text-gray-900">
+                                        Modo prueba sin pago en linea
                                     </h3>
-                                    <PaymentMethods
-                                        gateway={selectedGateway}
-                                        method={selectedPaymentMethod}
-                                        onGatewayChange={(gateway) => {
-                                            setSelectedGateway(gateway);
-                                            const firstForGateway = PAYMENT_METHODS.find(
-                                                (m) => m.gateway === gateway,
-                                            );
-                                            if (firstForGateway) {
-                                                setSelectedPaymentMethod(firstForGateway);
-                                            }
-                                        }}
-                                        onMethodChange={setSelectedPaymentMethod}
-                                    />
-
-                                    <div className="mt-6 p-4 border rounded-md bg-gray-50">
-                                        {selectedPaymentMethod.gateway === 'mercadopago' && (
-                                            <div className="space-y-6">
-                                                {selectedPaymentMethod.id === 'mp_wallet' && (
-                                                    <MercadoPagoButton
-                                                        orderId={checkoutSession.orderId}
-                                                        title={`Orden ${checkoutSession.orderId}`}
-                                                        description={eventTitle}
-                                                        quantity={Number(quantity)}
-                                                        unitPrice={Number(price)}
-                                                        currency="MXN"
-                                                        payerEmail={getValues('email')}
-                                                    />
-                                                )}
-
-                                                {selectedPaymentMethod.id === 'mp_card' && (
-                                                    <div className="border-t border-gray-200 pt-4">
-                                                        <h4 className="mb-3 text-sm font-semibold text-gray-700">
-                                                            Pagar con tarjeta
-                                                        </h4>
-                                                        <MercadoPagoCard
-                                                            orderId={checkoutSession.orderId}
-                                                            user={{
-                                                                email: payerData.email || '',
-                                                                firstName: payerData.firstName,
-                                                                lastName: payerData.lastName,
-                                                                phone: payerData.phone,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {selectedPaymentMethod.gateway === 'openpay' && orderSummary && (
-                                            <div className="space-y-4 text-sm text-gray-700">
-                                                {selectedPaymentMethod.id === 'op_card' && (
-                                                    <OpenpayCardPayment
-                                                        orderId={orderSummary.orderId}
-                                                        amount={orderSummary.total}
-                                                        description={eventTitle || 'Pago de boletos'}
-                                                        customerName={orderSummary.buyer.name || ''}
-                                                        customerEmail={orderSummary.buyer.email}
-                                                        customerPhone={orderSummary.buyer.phone || undefined}
-                                                    />
-                                                )}
-                                                {selectedPaymentMethod.id === 'op_spei' && (
-                                                    <SpeiPaymentButton
-                                                        orderId={orderSummary.orderId}
-                                                        amount={orderSummary.total}
-                                                        description={eventTitle || 'Pago de boletos'}
-                                                        customerName={orderSummary.buyer.name || ''}
-                                                        customerEmail={orderSummary.buyer.email}
-                                                        customerPhone={orderSummary.buyer.phone || undefined}
-                                                    />
-                                                )}
-                                                {selectedPaymentMethod.id === 'op_oxxo' && (
-                                                    <OxxoPaymentButton
-                                                        orderId={orderSummary.orderId}
-                                                        amount={orderSummary.total}
-                                                        description={eventTitle || 'Pago de boletos'}
-                                                        customerName={orderSummary.buyer.name || ''}
-                                                        customerEmail={orderSummary.buyer.email}
-                                                    />
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Tu orden{' '}
+                                        <span className="font-semibold text-gray-900">
+                                            {checkoutSession.orderId}
+                                        </span>{' '}ya fue reservada. En este modo de prueba no se procesan pagos en linea;
+                                        confirma manualmente con el organizador para completar la compra.
+                                    </p>
+                                    <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                        <li>
+                                            Importe estimado: ${Number(orderSummary?.total ?? checkoutSession.total).toFixed(2)}{' '}
+                                            {orderSummary?.currency ?? checkoutSession.currency ?? 'MXN'}
+                                        </li>
+                                        <li>
+                                            Reserva valida hasta{' '}
+                                            {new Date(checkoutSession.expiresAt).toLocaleString('es-MX')}
+                                        </li>
+                                        <li>Recibiras instrucciones por correo cuando se confirme el pago.</li>
+                                    </ul>
+                                    <button
+                                        type="button"
+                                        onClick={finalizeManualOrder}
+                                        disabled={finalizingManualOrder}
+                                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60"
+                                    >
+                                        {finalizingManualOrder ? 'Generando boletos...' : 'Finalizar reserva sin pago en linea'}
+                                    </button>
+                                    {manualCompleteError && (
+                                        <p className="text-sm text-red-600 text-center">{manualCompleteError}</p>
+                                    )}
                                 </div>
                             )}
                         </div>
