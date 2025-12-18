@@ -13,7 +13,7 @@ build/
 .env.development
 .env.test
 .env.production
-.env
+
 .env.*
 
 # App-specific environment files

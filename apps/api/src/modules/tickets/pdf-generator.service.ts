@@ -53,6 +53,16 @@ export class PdfGeneratorService {
                     },
                 },
                 template: true,
+                rpProfile: {
+                    include: {
+                        user: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
+                },
+                guestType: true,
             },
         });
 

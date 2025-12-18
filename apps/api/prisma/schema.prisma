@@ -23,6 +23,7 @@ model User {
   organizer  Organizer?
   legalLogs  LegalLog[]
   eventStaff EventStaff[]
+  rpProfile  RPProfile?    // V2: Perfil de RP si role = RP
 
   @@map("users")
 }
@@ -78,9 +79,6 @@ model Event {
   // Attendance tracking
   attendanceCount Int @default(0)
 
-  // Event Type (RP Nightclub events)
-  eventType EventType @default(REGULAR)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -89,7 +87,8 @@ model Event {
   orders        Order[]
   staff         EventStaff[]
   staffSessions StaffSession[]
-  rps           RP[]
+  rpProfiles    RPProfile[]       // V2: RPs como usuarios
+  guestTypes    GuestType[]       // V2: Tipos de invitados
 
   @@map("events")
 }
@@ -167,13 +166,21 @@ model Ticket {
   status     TicketStatus @default(VALID)
   usedAt     DateTime?
   qrJwtHash  String?
-  rpId       String? // RP que generó este ticket
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  
+  // V2: Nightclub System
+  rpProfileId   String?    // RP usuario que generó
+  guestTypeId   String?    // Tipo de invitado
+  guestNickname String?    // Nickname del invitado
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   order    Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   template TicketTemplate @relation(fields: [templateId], references: [id])
-  rp       RP?            @relation(fields: [rpId], references: [id], onDelete: SetNull)
+  
+  // V2 Relations
+  rpProfile RPProfile? @relation(fields: [rpProfileId], references: [id], onDelete: SetNull)
+  guestType GuestType? @relation(fields: [guestTypeId], references: [id], onDelete: SetNull)
 
   @@map("tickets")
 }
@@ -279,6 +286,7 @@ enum Role {
   ORGANIZER
   DIRECTOR
   ADMIN
+  RP        // V2: RP como usuario autenticado  
   STAFF
 }
 
@@ -316,34 +324,60 @@ enum EmailStatus {
   FAILED
 }
 
-enum EventType {
-  REGULAR
-  RP_NIGHTCLUB
-}
+// ============================================
+// V2: NIGHTCLUB SYSTEM - NUEVOS MODELOS
+// ============================================
 
-model RP {
+model RPProfile {
   id       String  @id @default(uuid())
+  userId   String  @unique
   eventId  String
-  name     String
-  email    String
-  phone    String?
-  code     String  @unique // Código único del RP (ej: RP-CARLOS-ABC123)
-  isActive Boolean @default(true)
-
-  // Límites opcionales (configurables por el organizador)
-  maxTickets Int? // Límite de boletos que puede generar
-
-  // Métricas
+  
+  // Límites
+  maxTickets Int?  // null = ilimitado
+  
+  // Tracking
   ticketsGenerated Int @default(0)
   ticketsUsed      Int @default(0)
-
+  
+  // Estado
+  isActive Boolean @default(true)
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+  
+  @@index([userId])
+  @@index([eventId])
+  @@map("rp_profiles")
+}
 
+model GuestType {
+  id          String @id @default(uuid())
+  eventId     String
+  
+  // Configuración
+  name        String   // "VIP", "Influencer", "Prensa"
+  description String?
+  color       String?  // #FF0000
+  icon        String?  // 👑, 📸, 📰
+  displayOrder Int @default(0)
+  
+  // PDF Personalización
+  showNicknameOnPdf Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
   event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   tickets Ticket[]
-
+  
   @@index([eventId])
-  @@index([code])
-  @@map("rps")
+  @@index([displayOrder])
+  @@map("guest_types")
 }

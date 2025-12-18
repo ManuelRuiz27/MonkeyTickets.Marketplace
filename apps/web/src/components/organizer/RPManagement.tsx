@@ -7,16 +7,14 @@ import { useNavigate } from 'react-router-dom';
 
 interface RPManagementProps {
     eventId: string;
-    eventTitle: string;
 }
 
-export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
+export function RPManagement({ eventId }: RPManagementProps) {
     const toast = useToast();
     const navigate = useNavigate();
     const [rps, setRps] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
     useEffect(() => {
         loadRPs();
@@ -25,7 +23,7 @@ export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
     const loadRPs = async () => {
         try {
             setLoading(true);
-            const data = await apiClient.listRPs(eventId);
+            const data = await apiClient.listRPUsers(eventId);
             setRps(data);
         } catch (error: any) {
             toast.error(error.message || 'Error al cargar RPs');
@@ -34,16 +32,9 @@ export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
         }
     };
 
-    const handleCopyLink = (shareLink: string, code: string) => {
-        navigator.clipboard.writeText(shareLink);
-        setCopiedCode(code);
-        toast.success('Link copiado al portapapeles');
-        setTimeout(() => setCopiedCode(null), 2000);
-    };
-
-    const handleToggleActive = async (rpId: string, currentStatus: boolean) => {
+    const handleToggleActive = async (rpProfileId: string, currentStatus: boolean) => {
         try {
-            await apiClient.updateRP(rpId, { isActive: !currentStatus });
+            await apiClient.toggleRPUser(rpProfileId);
             toast.success(currentStatus ? 'RP desactivado' : 'RP activado');
             loadRPs();
         } catch (error: any) {
@@ -51,17 +42,16 @@ export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
         }
     };
 
-    const handleDelete = async (rpId: string, name: string) => {
-        if (!confirm(`¿Eliminar a ${name}? Esta acción no se puede deshacer.`)) {
+    const handleResetPassword = async (rpProfileId: string, name: string) => {
+        if (!confirm(`¿Resetear contraseña de ${name}?`)) {
             return;
         }
 
         try {
-            await apiClient.deleteRP(rpId);
-            toast.success('RP eliminado correctamente');
-            loadRPs();
+            const result = await apiClient.resetRPPassword(rpProfileId);
+            toast.success(`✅ Nueva contraseña: ${result.temporaryPassword}`);
         } catch (error: any) {
-            toast.error(error.message || 'Error al eliminar RP');
+            toast.error(error.message || 'Error al resetear contraseña');
         }
     };
 
@@ -119,13 +109,10 @@ export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
                                     RP
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                    Código
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                     Generados
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                    Asistencia
+                                    Usados
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                     Conversión
@@ -139,62 +126,50 @@ export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {rps.map((rp) => (
-                                <tr key={rp.id} className={!rp.isActive ? 'opacity-50' : ''}>
+                            {rps.map((item) => (
+                                <tr key={item.rpProfile.id} className={!item.rpProfile.isActive ? 'opacity-50' : ''}>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div>
-                                            <div className="font-medium text-gray-900">{rp.name}</div>
-                                            <div className="text-sm text-gray-500">{rp.email}</div>
+                                            <div className="font-medium text-gray-900">{item.user.name}</div>
+                                            <div className="text-sm text-gray-500">{item.user.email}</div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                            {rp.code}
-                                        </code>
-                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {rp.ticketsGenerated}
-                                        {rp.maxTickets && (
-                                            <span className="text-gray-500"> / {rp.maxTickets}</span>
+                                        {item.rpProfile.ticketsGenerated}
+                                        {item.rpProfile.maxTickets && (
+                                            <span className="text-gray-500"> / {item.rpProfile.maxTickets}</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                                        {rp.ticketsUsed}
+                                        {item.rpProfile.ticketsUsed}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className="text-sm font-medium text-gray-900">
-                                            {rp.conversionRate.toFixed(1)}%
+                                            {item.rpProfile.conversionRate.toFixed(1)}%
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span
-                                            className={`px-2 py-1 text-xs rounded-full ${rp.isActive
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
+                                            className={`px-2 py-1 text-xs rounded-full ${item.rpProfile.isActive
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
                                                 }`}
                                         >
-                                            {rp.isActive ? 'Activo' : 'Inactivo'}
+                                            {item.rpProfile.isActive ? 'Activo' : 'Inactivo'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                         <button
-                                            onClick={() => handleCopyLink(rp.shareLink, rp.code)}
-                                            className="text-blue-600 hover:text-blue-900"
-                                            title="Copiar link compartible"
-                                        >
-                                            {copiedCode === rp.code ? '✓ Copiado' : '🔗 Copiar'}
-                                        </button>
-                                        <button
-                                            onClick={() => handleToggleActive(rp.id, rp.isActive)}
+                                            onClick={() => handleToggleActive(item.rpProfile.id, item.rpProfile.isActive)}
                                             className="text-yellow-600 hover:text-yellow-900"
                                         >
-                                            {rp.isActive ? 'Desactivar' : 'Activar'}
+                                            {item.rpProfile.isActive ? 'Desactivar' : 'Activar'}
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(rp.id, rp.name)}
-                                            className="text-red-600 hover:text-red-900"
+                                            onClick={() => handleResetPassword(item.rpProfile.id, item.user.name)}
+                                            className="text-blue-600 hover:text-blue-900"
                                         >
-                                            Eliminar
+                                            Reset Password
                                         </button>
                                     </td>
                                 </tr>
@@ -206,7 +181,7 @@ export function RPManagement({ eventId, eventTitle }: RPManagementProps) {
 
             {/* Modal de creación */}
             <CreateRPModal
-                isOpen={showCreateModal}
+                open={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 eventId={eventId}
                 onSuccess={loadRPs}

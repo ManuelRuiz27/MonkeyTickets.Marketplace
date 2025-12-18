@@ -18,6 +18,11 @@ export class AuthController {
         return this.authService.login(loginDto.email, loginDto.password);
     }
 
+    @Post('rp/login')
+    async loginRP(@Body() loginDto: LoginDto) {
+        return this.authService.loginRP(loginDto.email, loginDto.password);
+    }
+
     @Post('logout')
     @UseGuards(JwtAuthGuard)
     async logout(@Req() req: any) {

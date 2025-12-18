@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { Button } from '../ui/Button';
+import { Button } from '../../components/ui/Button';
 import { useToast } from '../../hooks/useToast';
 
 export function RPDashboardPage() {
@@ -186,8 +186,8 @@ export function RPDashboardPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                             <span
                                                 className={`px-3 py-1 text-xs rounded-full ${rp.isActive
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-red-100 text-red-800'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-red-100 text-red-800'
                                                     }`}
                                             >
                                                 {rp.isActive ? 'Activo' : 'Inactivo'}

@@ -5,13 +5,13 @@ import { Modal } from '../ui/Modal';
 import { useToast } from '../../hooks/useToast';
 
 interface CreateRPModalProps {
-    isOpen: boolean;
+    open: boolean;
     onClose: () => void;
     eventId: string;
     onSuccess: () => void;
 }
 
-export function CreateRPModal({ isOpen, onClose, eventId, onSuccess }: CreateRPModalProps) {
+export function CreateRPModal({ open, onClose, eventId, onSuccess }: CreateRPModalProps) {
     const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
@@ -29,14 +29,15 @@ export function CreateRPModal({ isOpen, onClose, eventId, onSuccess }: CreateRPM
             const data: any = {
                 name: form.name,
                 email: form.email,
+                password: form.name.toLowerCase().replace(/\s+/g, '') + '123', // Auto-generated temp password
             };
 
             if (form.phone) data.phone = form.phone;
             if (form.maxTickets) data.maxTickets = parseInt(form.maxTickets);
 
-            const result = await apiClient.createRP(eventId, data);
+            const result = await apiClient.createRPUser(eventId, data);
 
-            toast.success(`✅ RP creado: ${result.code}`);
+            toast.success(`✅ RP creado: ${result.user.email}\nContraseña temporal: ${result.temporaryPassword}`);
             setForm({ name: '', email: '', phone: '', maxTickets: '' });
             onSuccess();
             onClose();
@@ -49,15 +50,15 @@ export function CreateRPModal({ isOpen, onClose, eventId, onSuccess }: CreateRPM
 
     return (
         <Modal
-            isOpen={isOpen}
+            open={open}
             onClose={onClose}
             title="Registrar Nuevo RP"
-            footer={
+            actions={
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={loading}>
                         Cancelar
                     </Button>
-                    <Button onClick={handleSubmit} loading={loading} disabled={!form.name || !form.email}>
+                    <Button onClick={handleSubmit} isLoading={loading} disabled={!form.name || !form.email}>
                         Crear RP
                     </Button>
                 </>
@@ -125,3 +126,4 @@ export function CreateRPModal({ isOpen, onClose, eventId, onSuccess }: CreateRPM
         </Modal>
     );
 }
+

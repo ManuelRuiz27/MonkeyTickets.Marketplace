@@ -78,6 +78,64 @@ export class AuthService {
         };
     }
 
+    /**
+     * V2: Login para RPs
+     */
+    async loginRP(email: string, password: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+            include: {
+                rpProfile: {
+                    include: {
+                        event: {
+                            select: {
+                                id: true,
+                                title: true,
+                                startDate: true,
+                                endDate: true,
+                                venue: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!user || user.role !== 'RP') {
+            console.log('RP login failed: User not found or not RP role', email);
+            throw new UnauthorizedException('Invalid credentials');
+        }
+
+        if (!user.rpProfile) {
+            throw new UnauthorizedException('RP profile not found');
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            console.log('RP login failed: Invalid password');
+            throw new UnauthorizedException('Invalid credentials');
+        }
+
+        const token = this.generateToken(user.id, user.role);
+
+        logger.info(`RP logged in: ${user.email}`);
+
+        return {
+            user: this.sanitizeUser(user),
+            rpProfile: {
+                id: user.rpProfile.id,
+                eventId: user.rpProfile.eventId,
+                maxTickets: user.rpProfile.maxTickets,
+                ticketsGenerated: user.rpProfile.ticketsGenerated,
+                ticketsUsed: user.rpProfile.ticketsUsed,
+                isActive: user.rpProfile.isActive,
+                event: user.rpProfile.event,
+            },
+            token,
+        };
+    }
+
     async validateUser(userId: string) {
         return this.prisma.user.findUnique({
             where: { id: userId },

@@ -21,6 +21,9 @@ import { DirectorOrdersPage } from './pages/director/Orders';
 import { DirectorOrderDetailPage } from './pages/director/OrderDetail';
 import { RPDashboardPage } from './pages/organizer/RPDashboard';
 import { RPTicketGeneratorPage } from './pages/public/RPTicketGenerator';
+import { RPLogin } from './pages/rp/RPLogin';
+import { RPDashboard } from './pages/rp/RPDashboard';
+import { RPProtectedRoute } from './components/guards/RPProtectedRoute';
 
 function App() {
     return (
@@ -35,8 +38,19 @@ function App() {
                     <Route path="/checkout/:eventId" element={<Checkout />} />
                     <Route path="/checkout/success" element={<CheckoutSuccess />} />
 
-                    {/* RP - Public Ticket Generation */}
+                    {/* RP V1 - DEPRECATED (kept for backward compatibility) */}
                     <Route path="/rp/:rpCode" element={<RPTicketGeneratorPage />} />
+
+                    {/* RP V2 - New System */}
+                    <Route path="/rp/login" element={<RPLogin />} />
+                    <Route
+                        path="/rp/dashboard"
+                        element={
+                            <RPProtectedRoute>
+                                <RPDashboard />
+                            </RPProtectedRoute>
+                        }
+                    />
 
                     {/* Organizer Panel */}
                     <Route path="/organizer/login" element={<OrganizerLogin />} />

@@ -300,6 +300,160 @@ class ApiClient {
         );
     }
 
+    // ===== V2: RP Management (Nightclub System) =====
+
+    // Admin - RP Users Management
+    public async createRPUser(eventId: string, data: {
+        name: string;
+        email: string;
+        password: string;
+        phone?: string;
+        maxTickets?: number | null;
+    }) {
+        return this.request<{
+            user: { id: string; name: string; email: string; role: string };
+            rpProfile: {
+                id: string;
+                eventId: string;
+                isActive: boolean;
+                maxTickets: number | null;
+                ticketsGenerated: number;
+                ticketsUsed: number;
+            };
+            temporaryPassword: string;
+        }>(`/organizer/events/${eventId}/rp-users`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }, { organizerScope: true });
+    }
+
+    public async listRPUsers(eventId: string) {
+        return this.request<Array<{
+            user: {
+                id: string;
+                name: string;
+                email: string;
+            };
+            rpProfile: {
+                id: string;
+                isActive: boolean;
+                maxTickets: number | null;
+                ticketsGenerated: number;
+                ticketsUsed: number;
+                conversionRate: number;
+            };
+        }>>(`/organizer/events/${eventId}/rp-users`, {}, { organizerScope: true });
+    }
+
+    public async updateRPUser(rpProfileId: string, data: {
+        maxTickets?: number | null;
+        isActive?: boolean;
+    }) {
+        return this.request(`/organizer/rp-users/${rpProfileId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }, { organizerScope: true });
+    }
+
+    public async toggleRPUser(rpProfileId: string) {
+        return this.request<{ isActive: boolean }>(
+            `/organizer/rp-users/${rpProfileId}/toggle`,
+            { method: 'POST' },
+            { organizerScope: true }
+        );
+    }
+
+    public async resetRPPassword(rpProfileId: string) {
+        return this.request<{ temporaryPassword: string }>(
+            `/organizer/rp-users/${rpProfileId}/reset-password`,
+            { method: 'POST' },
+            { organizerScope: true }
+        );
+    }
+
+    // Admin - Guest Types Management
+    public async createGuestType(eventId: string, data: {
+        name: string;
+        description?: string;
+        color?: string;
+        icon?: string;
+        displayOrder?: number;
+        showNicknameOnPdf?: boolean;
+    }) {
+        return this.request(`/organizer/events/${eventId}/guest-types`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }, { organizerScope: true });
+    }
+
+    public async listGuestTypes(eventId: string) {
+        return this.request<Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            color: string | null;
+            icon: string | null;
+            displayOrder: number;
+            showNicknameOnPdf: boolean;
+            ticketCount: number;
+        }>>(`/organizer/events/${eventId}/guest-types`, {}, { organizerScope: true });
+    }
+
+    public async updateGuestType(guestTypeId: string, data: {
+        name?: string;
+        description?: string;
+        color?: string;
+        icon?: string;
+        showNicknameOnPdf?: boolean;
+    }) {
+        return this.request(`/organizer/guest-types/${guestTypeId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }, { organizerScope: true });
+    }
+
+    public async deleteGuestType(guestTypeId: string) {
+        return this.request<void>(
+            `/organizer/guest-types/${guestTypeId}`,
+            { method: 'DELETE' },
+            { organizerScope: true }
+        );
+    }
+
+    public async reorderGuestTypes(eventId: string, orderedIds: string[]) {
+        return this.request(`/organizer/events/${eventId}/guest-types/reorder`, {
+            method: 'POST',
+            body: JSON.stringify({ orderedIds }),
+        }, { organizerScope: true });
+    }
+
+    // RP - Ticket Generation
+    public async generateGuestTicket(data: {
+        guestTypeId: string;
+        guestNickname?: string;
+        quantity?: number;
+    }) {
+        return this.request('/rp/tickets/generate', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    public async getMyTickets(filters?: {
+        status?: 'VALID' | 'USED' | 'CANCELLED';
+        guestTypeId?: string;
+    }) {
+        return this.request('/rp/tickets/my-tickets', {}, { query: filters });
+    }
+
+    public async getMyStats() {
+        return this.request('/rp/tickets/my-stats');
+    }
+
+    public async getAvailableGuestTypes() {
+        return this.request('/rp/tickets/guest-types');
+    }
+
     // Reuse existing upload endpoint for QR coordinates
     public async uploadPdfTemplate(eventId: string, formData: FormData) {
         const headers = this.buildHeaders({ organizerScope: true });

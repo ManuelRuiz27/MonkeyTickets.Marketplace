@@ -249,7 +249,7 @@ export function RPTicketGeneratorPage() {
                                     type="submit"
                                     className="w-full py-4 text-lg"
                                     disabled={generating || !form.name || !form.email}
-                                    loading={generating}
+                                    isLoading={generating}
                                 >
                                     {generating ? 'Generando Boleto...' : '🎟️ Generar Mi Boleto'}
                                 </Button>
