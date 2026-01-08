@@ -1,11 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class OrdersService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async listByEvent(organizerId: string, eventId: string): Promise<any[]> {
+    async listByEvent(organizerId: string, eventId: string): Promise<OrderListItem[]> {
         await this.ensureEventOwnership(organizerId, eventId);
 
         return this.prisma.order.findMany({
@@ -20,7 +21,7 @@ export class OrdersService {
         });
     }
 
-    async getByIdForOrganizer(orderId: string, organizerId: string): Promise<any> {
+    async getByIdForOrganizer(orderId: string, organizerId: string): Promise<OrganizerOrder> {
         const order = await this.prisma.order.findFirst({
             where: {
                 id: orderId,
@@ -62,3 +63,23 @@ export class OrdersService {
         return event;
     }
 }
+
+type OrderListItem = Prisma.OrderGetPayload<{
+    include: {
+        buyer: true;
+        items: {
+            include: { template: true };
+        };
+    };
+}>;
+
+type OrganizerOrder = Prisma.OrderGetPayload<{
+    include: {
+        buyer: true;
+        event: true;
+        tickets: true;
+        items: {
+            include: { template: true };
+        };
+    };
+}>;

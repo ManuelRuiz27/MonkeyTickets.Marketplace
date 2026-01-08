@@ -17,6 +17,7 @@ import {
     CreateGuestTypeDto,
     UpdateGuestTypeDto,
 } from './guest-types.service';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 
 /**
  * Endpoints para gestión de tipos de invitado por evento
@@ -33,7 +34,7 @@ export class GuestTypesByEventController {
     @Post()
     async createGuestType(
         @Param('eventId') eventId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() createGuestTypeDto: CreateGuestTypeDto,
     ) {
         const organizerId = req.user.organizer?.id;
@@ -47,7 +48,7 @@ export class GuestTypesByEventController {
      * Admin lista tipos de invitado del evento
      */
     @Get()
-    async listGuestTypes(@Param('eventId') eventId: string, @Req() req: any) {
+    async listGuestTypes(@Param('eventId') eventId: string, @Req() req: AuthenticatedRequest) {
         const organizerId = req.user.organizer?.id;
         return this.guestTypesService.listGuestTypes(eventId, organizerId);
     }
@@ -58,7 +59,7 @@ export class GuestTypesByEventController {
     @Post('reorder')
     async reorderGuestTypes(
         @Param('eventId') eventId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body('orderedIds') orderedIds: string[],
     ) {
         const organizerId = req.user.organizer?.id;
@@ -83,7 +84,7 @@ export class GuestTypesManagementController {
      * Admin obtiene tipo específico
      */
     @Get(':guestTypeId')
-    async getGuestType(@Param('guestTypeId') guestTypeId: string, @Req() req: any) {
+    async getGuestType(@Param('guestTypeId') guestTypeId: string, @Req() req: AuthenticatedRequest) {
         const organizerId = req.user.organizer?.id;
         return this.guestTypesService.getGuestType(guestTypeId, organizerId);
     }
@@ -94,7 +95,7 @@ export class GuestTypesManagementController {
     @Patch(':guestTypeId')
     async updateGuestType(
         @Param('guestTypeId') guestTypeId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() updateGuestTypeDto: UpdateGuestTypeDto,
     ) {
         const organizerId = req.user.organizer?.id;
@@ -111,7 +112,7 @@ export class GuestTypesManagementController {
     @Delete(':guestTypeId')
     async deleteGuestType(
         @Param('guestTypeId') guestTypeId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
     ) {
         const organizerId = req.user.organizer?.id;
         return this.guestTypesService.deleteGuestType(guestTypeId, organizerId);

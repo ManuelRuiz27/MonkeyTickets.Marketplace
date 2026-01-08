@@ -4,6 +4,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/auth.types';
 
 @Controller('organizer')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,7 +13,7 @@ export class OrganizerDashboardController {
     constructor(private prisma: PrismaService) { }
 
     @Get('summary')
-    async getSummary(@CurrentUser() user: any) {
+    async getSummary(@CurrentUser() user: AuthenticatedUser) {
         // Get organizer from user
         const organizer = await this.prisma.organizer.findUnique({
             where: { userId: user.id },

@@ -8,10 +8,10 @@ import { createHash } from 'crypto';
  */
 @Injectable()
 export class IdempotencyMiddleware implements NestMiddleware {
-    private readonly cache = new Map<string, { response: any; timestamp: number }>();
+    private readonly cache = new Map<string, { response: unknown; timestamp: number }>();
     private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
-    use(req: Request, res: Response, next: NextFunction) {
+    use(req: Request, res: Response<unknown>, next: NextFunction) {
         const idempotencyKey = req.headers['idempotency-key'] as string;
 
         // Solo aplicar a métodos que modifican estado
@@ -52,7 +52,7 @@ export class IdempotencyMiddleware implements NestMiddleware {
 
         // Interceptar la respuesta para cachearla
         const originalJson = res.json.bind(res);
-        res.json = (body: any) => {
+        res.json = (body: unknown) => {
             // Cachear solo respuestas exitosas
             if (res.statusCode >= 200 && res.statusCode < 300) {
                 this.cache.set(requestHash, {
@@ -75,7 +75,7 @@ export class IdempotencyMiddleware implements NestMiddleware {
     /**
      * Crea hash único del request
      */
-    private createRequestHash(key: string, path: string, body: any): string {
+    private createRequestHash(key: string, path: string, body: unknown): string {
         const content = `${key}:${path}:${JSON.stringify(body)}`;
         return createHash('sha256').update(content).digest('hex');
     }

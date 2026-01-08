@@ -17,6 +17,7 @@ import {
     CreateRPUserDto,
     UpdateRPProfileDto,
 } from './rp-management.service';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 
 @Controller('organizer/events/:eventId/rp-users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,7 +31,7 @@ export class RPUsersController {
     @Post()
     async createRPUser(
         @Param('eventId') eventId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() createRPUserDto: CreateRPUserDto,
     ) {
         const organizerId = req.user.organizer?.id;
@@ -46,7 +47,7 @@ export class RPUsersController {
     @Get()
     async listRPUsers(
         @Param('eventId') eventId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
     ) {
         const organizerId = req.user.organizer?.id;
         return this.rpManagementService.listRPsByEvent(eventId, organizerId);
@@ -65,7 +66,7 @@ export class RPUserManagementController {
     @Get(':rpProfileId')
     async getRPProfile(
         @Param('rpProfileId') rpProfileId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
     ) {
         const organizerId = req.user.organizer?.id;
         return this.rpManagementService.getRPProfile(rpProfileId, organizerId);
@@ -77,7 +78,7 @@ export class RPUserManagementController {
     @Patch(':rpProfileId')
     async updateRPProfile(
         @Param('rpProfileId') rpProfileId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() updateRPProfileDto: UpdateRPProfileDto,
     ) {
         const organizerId = req.user.organizer?.id;
@@ -94,7 +95,7 @@ export class RPUserManagementController {
     @Delete(':rpProfileId')
     async deleteRPUser(
         @Param('rpProfileId') rpProfileId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
     ) {
         const organizerId = req.user.organizer?.id;
         return this.rpManagementService.deleteRPUser(rpProfileId, organizerId);
@@ -106,7 +107,7 @@ export class RPUserManagementController {
     @Post(':rpProfileId/toggle')
     async toggleRPStatus(
         @Param('rpProfileId') rpProfileId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
     ) {
         const organizerId = req.user.organizer?.id;
         return this.rpManagementService.toggleRPStatus(rpProfileId, organizerId);
@@ -118,7 +119,7 @@ export class RPUserManagementController {
     @Post(':rpProfileId/reset-password')
     async resetRPPassword(
         @Param('rpProfileId') rpProfileId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body('newPassword') newPassword: string,
     ) {
         const organizerId = req.user.organizer?.id;

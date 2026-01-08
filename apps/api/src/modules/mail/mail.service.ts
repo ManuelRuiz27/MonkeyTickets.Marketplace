@@ -74,10 +74,11 @@ export class MailService {
                 status = EmailStatus.SENT;
                 providerMessageId = info.messageId;
                 this.logger.log(`Email sent via SMTP to ${params.to} (messageId=${info.messageId})`);
-            } catch (error: any) {
+            } catch (error: unknown) {
                 status = EmailStatus.FAILED;
                 const message = error instanceof Error ? error.message : String(error);
-                this.logger.error(`Failed to send email via SMTP: ${message}`, error?.stack);
+                const stack = error instanceof Error ? error.stack : undefined;
+                this.logger.error(`Failed to send email via SMTP: ${message}`, stack);
             }
         } else {
             this.logger.warn('SMTP not configured; skipping real email sending and logging as PENDING.');
@@ -95,8 +96,9 @@ export class MailService {
                     sentAt: status === EmailStatus.SENT ? new Date() : null,
                 },
             });
-        } catch (error: any) {
-            this.logger.warn(`Email log persistence failed: ${(error as Error).message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.warn(`Email log persistence failed: ${message}`);
         }
     }
 }

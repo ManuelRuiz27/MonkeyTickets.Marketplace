@@ -147,7 +147,7 @@ export class AuthService {
         return this.jwtService.sign({ sub: userId, role });
     }
 
-    private sanitizeUser(user: any) {
+    private sanitizeUser<T extends { password?: string }>(user: T) {
         const { password, ...sanitized } = user;
         void password;
         return sanitized;

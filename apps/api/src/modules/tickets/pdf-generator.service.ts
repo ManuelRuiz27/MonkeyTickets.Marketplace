@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import * as jwt from 'jsonwebtoken';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -83,9 +84,13 @@ export class PdfGeneratorService {
     /**
      * Genera PDF con template personalizado del organizador
      */
-    private async generateWithCustomTemplate(ticket: any): Promise<Buffer> {
+    private async generateWithCustomTemplate(ticket: TicketWithRelations): Promise<Buffer> {
         const event = ticket.order.event;
-        const templatePath = path.join(process.cwd(), event.pdfTemplatePath);
+        const templatePathValue = event.pdfTemplatePath;
+        if (!templatePathValue) {
+            throw new Error('Template path not configured');
+        }
+        const templatePath = path.join(process.cwd(), templatePathValue);
 
         try {
             // Cargar PDF template del organizador
@@ -112,8 +117,9 @@ export class PdfGeneratorService {
 
             this.logger.log(`PDF generado con template custom para ticket ${ticket.id}`);
             return Buffer.from(await pdfDoc.save());
-        } catch (error: any) {
-            this.logger.error(`Error con template custom: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Error generando PDF custom';
+            this.logger.error(`Error con template custom: ${message}`);
             // Fallback a template por defecto
             return this.generateWithDefaultTemplate(ticket);
         }
@@ -122,7 +128,7 @@ export class PdfGeneratorService {
     /**
      * Genera PDF con template por defecto de MonoMarket
      */
-    private async generateWithDefaultTemplate(ticket: any): Promise<Buffer> {
+    private async generateWithDefaultTemplate(ticket: TicketWithRelations): Promise<Buffer> {
         const pdfDoc = await PDFDocument.create();
         const page = pdfDoc.addPage([595, 842]); // A4
         const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -240,7 +246,7 @@ export class PdfGeneratorService {
     /**
      * Genera QR Code con JWT firmado
      */
-    private async generateQRCode(ticket: any): Promise<Buffer> {
+    private async generateQRCode(ticket: TicketWithRelations): Promise<Buffer> {
         // Crear payload JWT
         const payload: TicketQRPayload = {
             ticketId: ticket.id,
@@ -293,8 +299,9 @@ export class PdfGeneratorService {
             }) as TicketQRPayload;
 
             return decoded;
-        } catch (error: any) {
-            this.logger.error(`Error verificando QR: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Error verificando QR';
+            this.logger.error(`Error verificando QR: ${message}`);
             throw new Error('QR inválido o expirado');
         }
     }
@@ -334,3 +341,29 @@ export class PdfGeneratorService {
         return createHash('sha256').update(token).digest('hex');
     }
 }
+
+type TicketWithRelations = Prisma.TicketGetPayload<{
+    include: {
+        order: {
+            include: {
+                buyer: true;
+                event: {
+                    include: {
+                        organizer: true;
+                    };
+                };
+            };
+        };
+        template: true;
+        rpProfile: {
+            include: {
+                user: {
+                    select: {
+                        name: true;
+                    };
+                };
+            };
+        };
+        guestType: true;
+    };
+}>;

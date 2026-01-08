@@ -8,12 +8,15 @@ export function CheckoutSuccess() {
     const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
     const orderId = query.get('orderId');
-    const rawStatus = (query.get('status') || 'completed').toLowerCase();
+    const source = query.get('source');
+    const rawStatusParam = query.get('status');
+    const rawStatus = (rawStatusParam || (source === 'mp' ? 'pending' : 'completed')).toLowerCase();
     const state = (location.state as { ticketIds?: string[] } | null) ?? null;
 
     const isCompleted = rawStatus === 'completed' || rawStatus === 'approved';
     const isInReview = rawStatus === 'in_review' || rawStatus === 'pending' || rawStatus === 'in_process';
     const isFailed = rawStatus === 'failed' || rawStatus === 'rejected' || rawStatus === 'cancelled';
+    const isMpSource = source === 'mp';
 
     const presetTicketIds = state?.ticketIds ?? [];
     const presetTicketKey = presetTicketIds.join(',');
@@ -40,8 +43,11 @@ export function CheckoutSuccess() {
         setLoadingTickets(true);
         setTicketError('');
 
-        apiClient
-            .completeManualOrder(orderId)
+        const loadTickets = isMpSource
+            ? apiClient.getCheckoutOrderTickets(orderId)
+            : apiClient.completeManualOrder(orderId);
+
+        loadTickets
             .then((response) => {
                 if (cancelled) {
                     return;
@@ -55,7 +61,10 @@ export function CheckoutSuccess() {
             })
             .catch(() => {
                 if (!cancelled) {
-                    setTicketError('No pudimos recuperar tus boletos. Intenta de nuevo o contacta al organizador.');
+                    const message = isMpSource
+                        ? 'Pago en confirmacion. Revisa tu correo o intenta mas tarde.'
+                        : 'No pudimos recuperar tus boletos. Intenta de nuevo o contacta al organizador.';
+                    setTicketError(message);
                 }
             })
             .finally(() => {
@@ -67,7 +76,7 @@ export function CheckoutSuccess() {
         return () => {
             cancelled = true;
         };
-    }, [orderId, isCompleted, hasRequestedTickets]);
+    }, [orderId, isCompleted, hasRequestedTickets, isMpSource]);
 
     let title = 'Compra completada';
     let message =

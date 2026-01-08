@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -25,8 +26,11 @@ export class AuthController {
 
     @Post('logout')
     @UseGuards(JwtAuthGuard)
-    async logout(@Req() req: any) {
-        const token = req.headers.authorization?.replace('Bearer ', '');
+    async logout(@Req() req: Request) {
+        const authHeader = req.headers.authorization;
+        const token = Array.isArray(authHeader)
+            ? authHeader[0]?.replace('Bearer ', '')
+            : authHeader?.replace('Bearer ', '');
         if (token) {
             await this.authService.blacklistToken(token);
         }

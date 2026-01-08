@@ -10,10 +10,8 @@ interface GlobalKPIsProps {
             total: number;
             active: number;
         };
-        orders: {
-            total: number;
-            paid: number;
-            pendingOrCancelled: number;
+        tickets: {
+            sold: number;
         };
         revenue: {
             platformFees: number;
@@ -36,9 +34,8 @@ export function GlobalKPIs({ metrics }: GlobalKPIsProps) {
             total: metrics.events.total,
         },
         {
-            label: 'Órdenes Pagadas',
-            value: metrics.orders.paid,
-            total: metrics.orders.total,
+            label: 'Tickets vendidos',
+            value: metrics.tickets.sold,
         },
         {
             label: 'Comisiones de Plataforma',

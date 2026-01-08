@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import type { Order } from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../modules/prisma/prisma.service';
 import { DirectorMetricsService } from './director-metrics.service';
@@ -14,14 +15,22 @@ describe('DirectorMetricsService', () => {
 
     it('returns overview metrics applying date filters', async () => {
         prisma.order.aggregate.mockResolvedValue({
+            _count: null,
+            _avg: null,
             _sum: {
                 total: new Prisma.Decimal(1500),
                 platformFeeAmount: new Prisma.Decimal(150),
             },
-        } as any);
+            _min: null,
+            _max: null,
+        } as unknown as Prisma.GetOrderAggregateType<Prisma.OrderAggregateArgs>);
         prisma.orderItem.aggregate.mockResolvedValue({
+            _count: null,
+            _avg: null,
             _sum: { quantity: 120 },
-        } as any);
+            _min: null,
+            _max: null,
+        } as unknown as Prisma.GetOrderItemAggregateType<Prisma.OrderItemAggregateArgs>);
         prisma.event.count.mockResolvedValue(7);
         prisma.organizer.count.mockResolvedValue(4);
 
@@ -70,7 +79,7 @@ describe('DirectorMetricsService', () => {
                 },
                 items: [{ quantity: 4 }, { quantity: 1 }],
             },
-        ] as any);
+        ] as unknown as Order[]);
 
         const result = await service.getTopOrganizers({ limit: 5 });
 
@@ -102,7 +111,7 @@ describe('DirectorMetricsService', () => {
                 },
                 items: [{ quantity: 10 }],
             },
-        ] as any);
+        ] as unknown as Order[]);
 
         const result = await service.getTopEvents({ limit: 3 });
 

@@ -3,6 +3,7 @@ import { OrganizerOrdersService } from './organizer-orders.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
+import type { AuthenticatedRequest } from '../../auth/auth.types';
 
 @Controller('organizer')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,7 +13,7 @@ export class OrganizerOrdersController {
 
     @Get('events/:eventId/orders')
     listOrders(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('eventId') eventId: string,
     ) {
         const organizerId = this.requireOrganizerId(req);
@@ -21,7 +22,7 @@ export class OrganizerOrdersController {
 
     @Get('orders/:orderId')
     orderDetail(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('orderId') orderId: string,
     ) {
         const organizerId = this.requireOrganizerId(req);
@@ -30,14 +31,14 @@ export class OrganizerOrdersController {
 
     @Post('orders/:orderId/resend-tickets')
     resendTickets(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('orderId') orderId: string,
     ) {
         const organizerId = this.requireOrganizerId(req);
         return this.organizerOrdersService.resendTickets(organizerId, orderId);
     }
 
-    private requireOrganizerId(req: any) {
+    private requireOrganizerId(req: AuthenticatedRequest) {
         const organizerId = req.user?.organizer?.id;
         if (!organizerId) {
             throw new BadRequestException('Organizer context is required');

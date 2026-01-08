@@ -1,9 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { FeePlan } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { LegalService } from '../../legal/legal.service';
 import { ReservationService } from './reservation.service';
 import { EmailService } from '../email/email.service';
+import { PaymentService, PaymentOrderItem } from './payment.service';
 
 const CHECKOUT_SESSION_TTL_MINUTES = 30;
 
@@ -22,11 +24,17 @@ export class CheckoutService {
         private legalService: LegalService,
         private reservationService: ReservationService,
         private emailService: EmailService,
+        private paymentService: PaymentService,
     ) { }
 
     async createCheckoutSession(data: CreateCheckoutSessionDto, context?: CheckoutSessionContext) {
         const event = await this.prisma.event.findUnique({
             where: { id: data.eventId },
+            include: {
+                organizer: {
+                    include: { feePlan: true },
+                },
+            },
         });
 
         if (!event) {
@@ -104,6 +112,9 @@ export class CheckoutService {
             total += Number(template.price) * requestedQuantity;
         }
 
+        const feePlan = await this.resolveFeePlan(event.organizerId, event.organizer?.feePlan);
+        const { platformFeeAmount, organizerIncomeAmount } = this.calculateFees(total, feePlan);
+
         const expiresAt = new Date(Date.now() + CHECKOUT_SESSION_TTL_MINUTES * 60 * 1000);
         const reservedUntil = new Date(Date.now() + 5 * 60 * 1000); // MVP: 5 min lock
 
@@ -150,8 +161,8 @@ export class CheckoutService {
                     status: 'PENDING',
                     total,
                     currency: currency ?? 'MXN',
-                    platformFeeAmount: 0,
-                    organizerIncomeAmount: 0,
+                    platformFeeAmount,
+                    organizerIncomeAmount,
                     ipAddress: context?.ip,
                     userAgent: context?.userAgent,
                     reservedUntil,
@@ -198,6 +209,19 @@ export class CheckoutService {
 
             this.logger.log(`Checkout creado: ${order.id}, reservado hasta ${reservedUntil.toISOString()}`);
 
+            const paymentItems: PaymentOrderItem[] = orderItemsData.map((item) => ({
+                templateId: item.templateId,
+                quantity: item.quantity,
+                unitPrice: Number(item.unitPrice),
+                currency: item.currency,
+            }));
+
+            // Crear preferencia de pago
+            const paymentPreference = await this.paymentService.createPreference(
+                { ...order, buyer: buyer, items: paymentItems },
+                templates
+            );
+
             return {
                 response: {
                     orderId: order.id,
@@ -205,6 +229,8 @@ export class CheckoutService {
                     currency: order.currency,
                     expiresAt: expiresAt.toISOString(),
                     reservedUntil: reservedUntil.toISOString(),
+                    preferenceId: paymentPreference.preferenceId,
+                    initPoint: paymentPreference.initPoint,
                 },
                 buyerId: buyer.id,
                 orderId: order.id,
@@ -343,20 +369,122 @@ export class CheckoutService {
 
         try {
             await this.reservationService.releaseReservation(order.id);
-        } catch (error: any) {
-            this.logger.warn(`Failed to release reservation for ${order.id}: ${error?.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.warn(`Failed to release reservation for ${order.id}: ${message}`);
         }
 
         try {
             await this.emailService.sendTicketsEmail(order.id);
-        } catch (error: any) {
-            this.logger.error(`Failed to send tickets for order ${order.id}: ${error?.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to send tickets for order ${order.id}: ${message}`);
         }
 
         return {
             orderId: order.id,
             tickets: createdTickets,
         };
+    }
+
+    async getOrderTickets(orderId: string) {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                tickets: {
+                    select: { id: true },
+                },
+            },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        if (order.status !== 'PAID') {
+            throw new BadRequestException('Order is not paid');
+        }
+
+        return {
+            orderId: order.id,
+            tickets: order.tickets.map((ticket) => ({ id: ticket.id })),
+        };
+    }
+
+    async processPaymentNotification(paymentId: string) {
+        const payment = await this.paymentService.getPaymentDetails(paymentId);
+        if (!payment) {
+            return { status: 'ignored', reason: 'missing_payment_details' };
+        }
+
+        const orderId = payment.externalReference;
+        if (!orderId) {
+            this.logger.warn(`Payment ${paymentId} has no external_reference`);
+            return { status: 'ignored', reason: 'missing_external_reference' };
+        }
+
+        const normalizedStatus = payment.status?.toLowerCase();
+        if (normalizedStatus === 'approved') {
+            const completion = await this.completeManualOrder(orderId);
+            return { status: 'completed', orderId: completion.orderId };
+        }
+
+        if (normalizedStatus === 'pending' || normalizedStatus === 'in_process') {
+            try {
+                await this.emailService.sendPendingPaymentEmail(orderId);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                this.logger.warn(`Failed to send pending payment email for ${orderId}: ${message}`);
+            }
+            return { status: 'pending', orderId };
+        }
+
+        this.logger.warn(`Payment ${paymentId} status ${payment.status} not processed`);
+        return { status: 'ignored', reason: 'unhandled_status', orderId };
+    }
+
+    private async resolveFeePlan(organizerId: string, organizerFeePlan?: FeePlan | null) {
+        if (organizerFeePlan) {
+            return organizerFeePlan;
+        }
+
+        const defaultPlan = await this.prisma.feePlan.findFirst({
+            where: { isDefault: true },
+        });
+
+        if (!defaultPlan) {
+            this.logger.warn(`No fee plan found for organizer ${organizerId}. Using zero fees.`);
+        }
+
+        return defaultPlan;
+    }
+
+    private calculateFees(total: number, feePlan?: FeePlan | null) {
+        if (!feePlan) {
+            return {
+                platformFeeAmount: 0,
+                organizerIncomeAmount: total,
+            };
+        }
+
+        const platformPercent = Number(feePlan.platformFeePercent || 0);
+        const platformFixed = Number(feePlan.platformFeeFixed || 0);
+        const gatewayPercent = Number(feePlan.paymentGatewayFeePercent || 0);
+
+        const platformFeeAmount = this.roundCurrency((total * platformPercent) / 100 + platformFixed);
+        const gatewayFeeAmount = this.roundCurrency((total * gatewayPercent) / 100);
+        const organizerIncomeAmount = this.roundCurrency(
+            Math.max(0, total - platformFeeAmount - gatewayFeeAmount),
+        );
+
+        return {
+            platformFeeAmount,
+            organizerIncomeAmount,
+        };
+    }
+
+    private roundCurrency(value: number) {
+        return Math.round(value * 100) / 100;
     }
 
     private generateTicketCode(orderId: string, templateId: string) {

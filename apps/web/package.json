@@ -15,6 +15,7 @@
     },
     "dependencies": {
         "@headlessui/react": "^2.2.9",
+        "@mercadopago/sdk-react": "^1.0.7",
         "@monomarket/contracts": "workspace:*",
         "@testing-library/jest-dom": "^6.6.3",
         "@testing-library/react": "^16.1.0",

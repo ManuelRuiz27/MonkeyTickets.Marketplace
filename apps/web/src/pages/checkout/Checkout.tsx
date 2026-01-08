@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
+import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -30,6 +31,7 @@ export function Checkout() {
     } = useForm();
 
     useEffect(() => {
+        initMercadoPago(import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || 'TEST-PUBLIC-KEY', { locale: 'es-MX' });
         if (!location.state) {
             // navigate('/');
         }
@@ -252,6 +254,21 @@ export function Checkout() {
                                         </button>
                                     </div>
                                 </form>
+                            ) : checkoutSession.preferenceId ? (
+                                <div className="mt-6 space-y-4">
+                                    <h3 className="text-lg font-medium text-gray-900">
+                                        Pago seguro con Mercado Pago
+                                    </h3>
+                                    <p className="text-sm text-gray-600 mb-4">
+                                        Elige tu método de pago preferido.
+                                    </p>
+                                    <Wallet initialization={{ preferenceId: checkoutSession.preferenceId }} />
+                                    <div className="mt-4 pt-4 border-t">
+                                        <p className="text-xs text-gray-500 text-center">
+                                            Tu pago se procesará de forma segura. Al completar el pago recibirás tus boletos por correo.
+                                        </p>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="mt-6 space-y-4">
                                     <h3 className="text-lg font-medium text-gray-900">
@@ -301,6 +318,6 @@ export function Checkout() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

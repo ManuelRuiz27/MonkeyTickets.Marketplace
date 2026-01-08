@@ -44,7 +44,7 @@ describe('EventsController (e2e)', () => {
                 .expect(200);
 
             const events = response.body;
-            events.forEach((event: any) => {
+            events.forEach((event: { status?: string }) => {
                 expect(event.status).toBe('PUBLISHED');
             });
         });

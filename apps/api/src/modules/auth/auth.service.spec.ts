@@ -74,7 +74,7 @@ describe('AuthService', () => {
             expect(result).toHaveProperty('user');
             expect(result).toHaveProperty('token');
             expect(result.token).toBe('mock-token');
-            expect(result.user.password).toBeUndefined();
+            expect('password' in result.user).toBe(false);
         });
 
         it('should throw UnauthorizedException for invalid email', async () => {
@@ -202,7 +202,7 @@ describe('AuthService', () => {
             expect(result).toHaveProperty('user');
             expect(result).toHaveProperty('token');
             expect(result.user.email).toBe(registerData.email);
-            expect(result.user.password).toBeUndefined();
+            expect('password' in result.user).toBe(false);
         });
     });
 });

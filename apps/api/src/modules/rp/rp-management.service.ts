@@ -1,5 +1,6 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
@@ -234,7 +235,7 @@ export class RPManagementService {
 
         // Actualizar User si hay cambios de nombre o email
         if (data.name || data.email) {
-            const updateData: any = {};
+            const updateData: Prisma.UserUpdateInput = {};
             if (data.name) updateData.name = data.name;
             if (data.email) {
                 // Verificar que el nuevo email no esté en uso
@@ -257,7 +258,7 @@ export class RPManagementService {
         }
 
         // Actualizar RPProfile
-        const updateProfileData: any = {};
+        const updateProfileData: Prisma.RPProfileUpdateInput = {};
         if (data.maxTickets !== undefined) updateProfileData.maxTickets = data.maxTickets;
         if (data.isActive !== undefined) updateProfileData.isActive = data.isActive;
 

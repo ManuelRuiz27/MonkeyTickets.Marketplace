@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { logger } from '@monomarket/config';
 import { CheckoutService } from './checkout.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
@@ -16,7 +17,7 @@ export class CheckoutController {
     @Post('session')
     async createSession(
         @Body() createCheckoutSessionDto: CreateCheckoutSessionDto,
-        @Req() req: any,
+        @Req() req: Request,
     ) {
         const ip = this.extractIp(req);
         this.ensureRateLimit(ip);
@@ -29,6 +30,11 @@ export class CheckoutController {
         return this.checkoutService.getCheckoutOrderSummary(id);
     }
 
+    @Get('orders/:id/tickets')
+    async getOrderTickets(@Param('id') id: string) {
+        return this.checkoutService.getOrderTickets(id);
+    }
+
     @Post('orders/:id/manual-complete')
     async completeManualOrder(@Param('id') id: string) {
         return this.checkoutService.completeManualOrder(id);
@@ -38,7 +44,7 @@ export class CheckoutController {
     @Post()
     async createLegacySession(
         @Body() createCheckoutSessionDto: CreateCheckoutSessionDto,
-        @Req() req: any,
+        @Req() req: Request,
     ) {
         const ip = this.extractIp(req);
         this.ensureRateLimit(ip);
@@ -46,7 +52,7 @@ export class CheckoutController {
         return this.handleSessionCreation(createCheckoutSessionDto, req, ip);
     }
 
-    private handleSessionCreation(dto: CreateCheckoutSessionDto, req: any, ip: string) {
+    private handleSessionCreation(dto: CreateCheckoutSessionDto, req: Request, ip: string) {
         logger.info(
             {
                 eventId: dto.eventId,
@@ -59,7 +65,8 @@ export class CheckoutController {
             'Incoming checkout session request',
         );
 
-        const userAgent = req.headers['user-agent'] ?? 'unknown';
+        const userAgentHeader = req.headers['user-agent'];
+        const userAgent = Array.isArray(userAgentHeader) ? userAgentHeader[0] : userAgentHeader ?? 'unknown';
         const termsVersion = process.env.TERMS_VERSION ?? 'v1';
 
         return this.checkoutService.createCheckoutSession(dto, {
@@ -69,7 +76,7 @@ export class CheckoutController {
         });
     }
 
-    private extractIp(req: any): string {
+    private extractIp(req: Request): string {
         const forwarded = req.headers['x-forwarded-for'];
         if (typeof forwarded === 'string' && forwarded.length > 0) {
             return forwarded.split(',')[0].trim();
@@ -90,4 +97,55 @@ export class CheckoutController {
             );
         }
     }
+
+    private getQueryValue(value: string | string[] | undefined) {
+        return Array.isArray(value) ? value[0] : value;
+    }
+
+    private normalizeWebhookId(value: string | number | undefined | null) {
+        if (value === undefined || value === null) {
+            return undefined;
+        }
+        return String(value);
+    }
+
+    @Post('webhook')
+    async handleWebhook(@Body() body: MercadoPagoWebhookPayload, @Req() req: Request) {
+        const query = req.query as Record<string, string | string[] | undefined>;
+        const topic =
+            this.getQueryValue(query.topic) ||
+            this.getQueryValue(query.type) ||
+            body?.type ||
+            body?.topic;
+        const resource = body?.resource;
+        const resourceMatch = typeof resource === 'string'
+            ? resource.match(/\/(\d+)(?:\?.*)?$/)
+            : null;
+        const dataId =
+            this.normalizeWebhookId(body?.data?.id) ||
+            this.getQueryValue(query.id) ||
+            resourceMatch?.[1];
+
+        logger.info(`Webhook received: topic=${topic} id=${dataId}`);
+
+        if (topic === 'payment' && dataId) {
+            try {
+                await this.checkoutService.processPaymentNotification(String(dataId));
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                logger.error(`Error processing webhook: ${message}`);
+            }
+        }
+
+        return { status: 'OK' };
+    }
+}
+
+interface MercadoPagoWebhookPayload {
+    type?: string;
+    topic?: string;
+    data?: {
+        id?: string | number;
+    };
+    resource?: string;
 }

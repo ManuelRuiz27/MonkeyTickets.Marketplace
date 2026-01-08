@@ -14,6 +14,7 @@ import {
     RPTicketsV2Service,
     GenerateGuestTicketDto,
 } from './rp-tickets-v2.service';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 
 /**
  * Endpoints para que RPs generen y gestionen sus tickets
@@ -29,7 +30,7 @@ export class RPTicketsV2Controller {
      */
     @Post('generate')
     async generateTicket(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() generateTicketDto: GenerateGuestTicketDto,
     ) {
         const rpUserId = req.user.id;
@@ -44,7 +45,7 @@ export class RPTicketsV2Controller {
      */
     @Get('my-tickets')
     async getMyTickets(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Query('status') status?: 'VALID' | 'USED' | 'CANCELLED',
         @Query('guestTypeId') guestTypeId?: string,
     ) {
@@ -59,7 +60,7 @@ export class RPTicketsV2Controller {
      * RP obtiene sus estadísticas
      */
     @Get('my-stats')
-    async getMyStats(@Req() req: any) {
+    async getMyStats(@Req() req: AuthenticatedRequest) {
         const rpUserId = req.user.id;
         return this.rpTicketsService.getMyStats(rpUserId);
     }
@@ -68,7 +69,7 @@ export class RPTicketsV2Controller {
      * RP obtiene tipos de invitado disponibles
      */
     @Get('guest-types')
-    async getAvailableGuestTypes(@Req() req: any) {
+    async getAvailableGuestTypes(@Req() req: AuthenticatedRequest) {
         const rpUserId = req.user.id;
         return this.rpTicketsService.getAvailableGuestTypes(rpUserId);
     }

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createApplication } from './bootstrap';
 
-let serverPromise: Promise<any> | null = null;
+let serverPromise: Promise<(req: VercelRequest, res: VercelResponse) => unknown> | null = null;
 
 async function getServer() {
     if (!serverPromise) {

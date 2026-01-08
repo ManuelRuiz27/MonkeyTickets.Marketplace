@@ -8,6 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { v4 as uuidv4 } from 'uuid';
 import { EventFiltersDto } from './dto/event-filters.dto';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 
 /** Controlador público de eventos */
 @Controller('public/events')
@@ -51,11 +52,12 @@ export class OrganizerEventsController {
     constructor(private readonly eventsService: EventsService) { }
 
     @Get()
-    async getOrganizerEvents(@Req() req: any) {
+    async getOrganizerEvents(@Req() req: AuthenticatedRequest) {
+        const userId = req.user.userId ?? req.user.id;
         if (req.user.role === 'STAFF') {
-            return this.eventsService.findAllForStaff(req.user.userId);
+            return this.eventsService.findAllForStaff(userId);
         }
-        return this.eventsService.findAllByOrganizer(req.user.userId);
+        return this.eventsService.findAllByOrganizer(userId);
     }
 
     @Post(':id/pdf-template')
@@ -83,7 +85,7 @@ export class OrganizerEventsController {
     async uploadPdfTemplate(
         @Param('id') eventId: string,
         @UploadedFile() file: Express.Multer.File,
-        @Body() dto: any,
+        @Body() dto: PdfTemplateConfigDto,
     ) {
         if (!file) {
             throw new BadRequestException('No se proporcionó ningún archivo');
@@ -103,10 +105,11 @@ export class OrganizerEventsController {
     @Post(':id/access-token')
     async generateAccessToken(
         @Param('id') eventId: string,
-        @Req() req: any
+        @Req() req: AuthenticatedRequest
     ) {
         const event = await this.eventsService.findById(eventId);
-        if (!event || event.organizer.userId !== req.user.userId) {
+        const userId = req.user.userId ?? req.user.id;
+        if (!event || event.organizer.userId !== userId) {
             throw new BadRequestException('No autorizado');
         }
 
@@ -119,4 +122,10 @@ export class OrganizerEventsController {
             message: 'Token generado. Comparte esta URL para acceso directo al evento.'
         };
     }
+}
+
+interface PdfTemplateConfigDto {
+    qrCodeX?: string;
+    qrCodeY?: string;
+    qrCodeWidth?: string;
 }

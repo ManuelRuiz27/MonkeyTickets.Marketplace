@@ -5,6 +5,8 @@ import { ComplimentaryTicketsService } from '../tickets/complimentary-tickets.se
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import type { Request } from 'express';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 
 /**
  * Controlador del panel del organizador (MVP Épica 4)
@@ -23,8 +25,8 @@ export class OrganizerController {
      * GET /organizer/dashboard
      */
     @Get('dashboard')
-    async getDashboard(@Req() req: any) {
-        return this.dashboardService.getOrganizerSummary(req.user.userId);
+    async getDashboard(@Req() req: AuthenticatedRequest) {
+        return this.dashboardService.getOrganizerSummary(this.getUserId(req));
     }
 
     /**
@@ -32,8 +34,8 @@ export class OrganizerController {
      * GET /organizer/events/:id/metrics
      */
     @Get('events/:id/metrics')
-    async getEventMetrics(@Param('id') eventId: string, @Req() req: any) {
-        return this.dashboardService.getEventMetrics(eventId, req.user.userId);
+    async getEventMetrics(@Param('id') eventId: string, @Req() req: AuthenticatedRequest) {
+        return this.dashboardService.getEventMetrics(eventId, this.getUserId(req));
     }
 
     /**
@@ -41,8 +43,8 @@ export class OrganizerController {
      * GET /organizer/events/:id/orders
      */
     @Get('events/:id/orders')
-    async getEventOrders(@Param('id') eventId: string, @Req() req: any) {
-        return this.dashboardService.getEventOrders(eventId, req.user.userId);
+    async getEventOrders(@Param('id') eventId: string, @Req() req: AuthenticatedRequest) {
+        return this.dashboardService.getEventOrders(eventId, this.getUserId(req));
     }
 
     /**
@@ -50,8 +52,8 @@ export class OrganizerController {
      * GET /organizer/cortesias/stats
      */
     @Get('cortesias/stats')
-    async getCortesiasStats(@Req() req: any) {
-        const summary = await this.dashboardService.getOrganizerSummary(req.user.userId);
+    async getCortesiasStats(@Req() req: AuthenticatedRequest) {
+        const summary = await this.dashboardService.getOrganizerSummary(this.getUserId(req));
         return summary?.cortesias || null;
     }
 
@@ -62,7 +64,7 @@ export class OrganizerController {
     @Post('events/:id/cortesias')
     async generateCortesias(
         @Param('id') eventId: string,
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() dto: {
             quantity: number;
             buyerName: string;
@@ -70,7 +72,7 @@ export class OrganizerController {
             buyerPhone?: string;
         }
     ) {
-        const summary = await this.dashboardService.getOrganizerSummary(req.user.userId);
+        const summary = await this.dashboardService.getOrganizerSummary(this.getUserId(req));
         if (!summary) {
             throw new Error('Organizador no encontrado');
         }
@@ -85,6 +87,10 @@ export class OrganizerController {
                 phone: dto.buyerPhone,
             }
         );
+    }
+
+    private getUserId(req: AuthenticatedRequest) {
+        return req.user.userId ?? req.user.id;
     }
 }
 
@@ -111,8 +117,9 @@ export class DirectorController {
      * GET /director/organizers?status=PENDING
      */
     @Get('organizers')
-    async listOrganizers(@Req() req: any) {
-        const status = req.query.status;
+    async listOrganizers(@Req() req: Request) {
+        const statusValue = req.query.status;
+        const status = Array.isArray(statusValue) ? statusValue[0] : statusValue;
         return this.dashboardService.listOrganizers(status);
     }
 

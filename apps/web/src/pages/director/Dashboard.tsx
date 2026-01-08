@@ -44,10 +44,8 @@ export function DirectorDashboardPage() {
                     total: overview.activeEvents,
                     active: overview.activeEvents,
                 },
-                orders: {
-                    total: 0,
-                    paid: 0,
-                    pendingOrCancelled: 0,
+                tickets: {
+                    sold: overview.totalTicketsSold,
                 },
                 revenue: {
                     platformFees: overview.platformRevenue,

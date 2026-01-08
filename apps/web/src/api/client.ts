@@ -208,6 +208,10 @@ class ApiClient {
         return this.request<CheckoutOrderSummary>(`/checkout/orders/${orderId}`);
     }
 
+    public async getCheckoutOrderTickets(orderId: string) {
+        return this.request<ManualOrderCompletionResponse>(`/checkout/orders/${orderId}/tickets`);
+    }
+
     public async completeManualOrder(orderId: string) {
         return this.request<ManualOrderCompletionResponse>(`/checkout/orders/${orderId}/manual-complete`, {
             method: 'POST',

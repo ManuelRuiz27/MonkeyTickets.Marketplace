@@ -58,6 +58,52 @@ export function OrganizerSalesPage() {
         }
     };
 
+    const escapeCsvValue = (value: string | number | null | undefined) => {
+        const raw = value === null || value === undefined ? '' : String(value);
+        const needsQuotes = raw.includes(',') || raw.includes('"') || raw.includes('\n');
+        const escaped = raw.replace(/"/g, '""');
+        return needsQuotes ? `"${escaped}"` : escaped;
+    };
+
+    const downloadReport = () => {
+        if (!orders.length) {
+            setError('No hay ordenes para exportar.');
+            return;
+        }
+
+        const headers = [
+            'order_id',
+            'buyer_name',
+            'buyer_email',
+            'total',
+            'currency',
+            'status',
+            'created_at',
+        ];
+        const rows = orders.map((order) => ([
+            order.id,
+            order.buyer?.name || '',
+            order.buyer?.email || '',
+            Number(order.total || 0).toFixed(2),
+            order.currency || 'MXN',
+            order.status || '',
+            order.createdAt ? new Date(order.createdAt).toISOString() : '',
+        ]));
+
+        const csv = [
+            headers.join(','),
+            ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+        ].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ventas-${eventId || 'evento'}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="bg-white border-b">
@@ -66,12 +112,21 @@ export function OrganizerSalesPage() {
                         <p className="text-sm text-gray-500 uppercase">Ventas del evento</p>
                         <h1 className="text-2xl font-bold text-gray-900">Resumen de ventas</h1>
                     </div>
-                    <button
-                        onClick={() => navigate('/organizer/events')}
-                        className="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-100"
-                    >
-                        Volver a eventos
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => navigate('/organizer/events')}
+                            className="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-100"
+                        >
+                            Volver a eventos
+                        </button>
+                        <button
+                            onClick={downloadReport}
+                            disabled={orders.length === 0}
+                            className="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                        >
+                            Descargar reporte
+                        </button>
+                    </div>
                 </div>
             </div>
 

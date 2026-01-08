@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { Event } from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrganizerEventsService } from './organizer-events.service';
@@ -18,7 +19,7 @@ describe('OrganizerEventsService', () => {
     });
 
     it('creates events with defaults', async () => {
-        prisma.event.create.mockResolvedValue({ id: 'event-1', title: 'My Event' } as any);
+        prisma.event.create.mockResolvedValue({ id: 'event-1', title: 'My Event' } as Event);
 
         const result = await service.create('org-1', {
             name: 'My Event',
@@ -43,11 +44,11 @@ describe('OrganizerEventsService', () => {
         prisma.event.findFirst.mockResolvedValue({
             id: 'event-2',
             organizerId: 'org-9',
-        } as any);
+        } as Event);
         prisma.event.update.mockResolvedValue({
             id: 'event-2',
             title: 'Updated Event',
-        } as any);
+        } as Event);
 
         const result = await service.update('org-9', 'event-2', {
             name: 'Updated Event',
@@ -74,8 +75,8 @@ describe('OrganizerEventsService', () => {
     });
 
     it('cancels events instead of deleting', async () => {
-        prisma.event.findFirst.mockResolvedValue({ id: 'event-10', organizerId: 'org-1' } as any);
-        prisma.event.update.mockResolvedValue({ id: 'event-10', status: 'CANCELLED' } as any);
+        prisma.event.findFirst.mockResolvedValue({ id: 'event-10', organizerId: 'org-1' } as Event);
+        prisma.event.update.mockResolvedValue({ id: 'event-10', status: 'CANCELLED' } as Event);
 
         const result = await service.cancel('org-1', 'event-10');
 
@@ -87,7 +88,7 @@ describe('OrganizerEventsService', () => {
     });
 
     it('assigns templates ensuring ownership', async () => {
-        prisma.event.findFirst.mockResolvedValue({ id: 'event-77', organizerId: 'org-5' } as any);
+        prisma.event.findFirst.mockResolvedValue({ id: 'event-77', organizerId: 'org-5' } as Event);
         (templatesService.assignToEvent as jest.Mock).mockResolvedValue({ id: 'template-1' });
 
         const result = await service.assignTemplate('org-5', 'event-77', 'template-1');

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfGeneratorService } from '../tickets/pdf-generator.service';
 import { MailService } from '../mail/mail.service';
@@ -80,7 +81,7 @@ export class EmailService {
         this.logger.log(`Email de pago pendiente enviado a ${order.buyer.email}`);
     }
 
-    private buildTicketEmailTemplate(order: any): string {
+    private buildTicketEmailTemplate(order: TicketEmailOrder): string {
         return `
 <!DOCTYPE html>
 <html>
@@ -121,7 +122,7 @@ export class EmailService {
         `.trim();
     }
 
-    private buildPendingPaymentTemplate(order: any): string {
+    private buildPendingPaymentTemplate(order: PendingEmailOrder): string {
         return `
 <!DOCTYPE html>
 <html>
@@ -155,3 +156,18 @@ export class EmailService {
         `.trim();
     }
 }
+
+type TicketEmailOrder = Prisma.OrderGetPayload<{
+    include: {
+        buyer: true;
+        event: true;
+        tickets: true;
+    };
+}>;
+
+type PendingEmailOrder = Prisma.OrderGetPayload<{
+    include: {
+        buyer: true;
+        event: true;
+    };
+}>;

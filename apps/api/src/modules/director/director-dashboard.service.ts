@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { OrganizerStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 
@@ -76,7 +77,11 @@ export class DirectorDashboardService {
      * Lista de organizadores con filtros
      */
     async listOrganizers(status?: string, limit = 50) {
-        const where = status ? { status: status as any } : {};
+        const statusValue = status?.toUpperCase() as OrganizerStatus | undefined;
+        const statusFilter = statusValue && Object.values(OrganizerStatus).includes(statusValue)
+            ? statusValue
+            : undefined;
+        const where = statusFilter ? { status: statusFilter } : {};
 
         return this.prisma.organizer.findMany({
             where,

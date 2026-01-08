@@ -270,7 +270,7 @@ export class RPTicketsV2Service {
                 : 0;
 
         // Breakdown por tipo de invitado
-        const byGuestType: Record<string, any> = {};
+        const byGuestType: Record<string, GuestTypeStats> = {};
         rpProfile.tickets.forEach((ticket) => {
             if (!ticket.guestType) return;
 
@@ -340,3 +340,11 @@ export class RPTicketsV2Service {
         return guestTypes;
     }
 }
+
+type GuestTypeStats = {
+    name: string;
+    color: string | null;
+    generated: number;
+    used: number;
+    valid: number;
+};

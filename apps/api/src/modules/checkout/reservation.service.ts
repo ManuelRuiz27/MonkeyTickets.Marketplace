@@ -38,8 +38,9 @@ export class ReservationService {
                 this.logger.error(`Redis connection failed: ${error?.message ?? error}`);
                 this.enableMemoryFallback(error);
             });
-        } catch (error: any) {
-            this.logger.warn(`REDIS_URL no configurado (${error?.message ?? error}). Usando reservas en memoria.`);
+        } catch (error: unknown) {
+            const message = this.getErrorMessage(error);
+            this.logger.warn(`REDIS_URL no configurado (${message}). Usando reservas en memoria.`);
             this.useMemoryStore = true;
         }
     }
@@ -77,8 +78,10 @@ export class ReservationService {
 
             this.logger.log(`Reserved ${quantity} tickets for order ${orderId}, expires in ${this.LOCK_TTL_SECONDS}s`);
             return true;
-        } catch (error: any) {
-            this.logger.error(`Failed to reserve tickets: ${error.message}`, error.stack);
+        } catch (error: unknown) {
+            const message = this.getErrorMessage(error);
+            const stack = error instanceof Error ? error.stack : undefined;
+            this.logger.error(`Failed to reserve tickets: ${message}`, stack);
             this.enableMemoryFallback(error);
             return this.reserveInMemory(eventId, templateId, quantity, orderId);
         }
@@ -109,8 +112,10 @@ export class ReservationService {
             await this.redis.del(lockKey);
 
             this.logger.log(`Released ${quantity} tickets for order ${orderId}`);
-        } catch (error: any) {
-            this.logger.error(`Failed to release reservation: ${error.message}`, error.stack);
+        } catch (error: unknown) {
+            const message = this.getErrorMessage(error);
+            const stack = error instanceof Error ? error.stack : undefined;
+            this.logger.error(`Failed to release reservation: ${message}`, stack);
             this.enableMemoryFallback(error);
             this.releaseMemoryReservation(orderId);
         }
@@ -166,8 +171,9 @@ export class ReservationService {
             await this.redis.expire(lockKey, this.LOCK_TTL_SECONDS);
             this.logger.log(`Extended reservation for order ${orderId}`);
             return true;
-        } catch (error: any) {
-            this.logger.error(`Failed to extend reservation: ${error.message}`);
+        } catch (error: unknown) {
+            const message = this.getErrorMessage(error);
+            this.logger.error(`Failed to extend reservation: ${message}`);
             this.enableMemoryFallback(error);
             return this.extendMemoryReservation(orderId);
         }
@@ -272,23 +278,28 @@ export class ReservationService {
     private getMemoryKey(eventId: string, templateId: string): string {
         return `${eventId}:${templateId}`;
     }
-
-    private enableMemoryFallback(error: any) {
+    private enableMemoryFallback(error: unknown) {
         if (this.useMemoryStore) {
             return;
         }
 
+        const message = this.getErrorMessage(error);
         this.logger.warn(
-            `Falling back a reservas en memoria por indisponibilidad de Redis (${error?.message ?? error}).`,
+            `Falling back a reservas en memoria por indisponibilidad de Redis (${message}).`,
         );
         this.useMemoryStore = true;
         if (this.redis) {
             try {
                 this.redis.disconnect();
-            } catch (disconnectError: any) {
-                this.logger.warn(`Error al desconectar Redis: ${disconnectError?.message ?? disconnectError}`);
+            } catch (disconnectError: unknown) {
+                const disconnectMessage = this.getErrorMessage(disconnectError);
+                this.logger.warn(`Error al desconectar Redis: ${disconnectMessage}`);
             }
         }
         this.redis = undefined;
+    }
+
+    private getErrorMessage(error: unknown) {
+        return error instanceof Error ? error.message : String(error);
     }
 }

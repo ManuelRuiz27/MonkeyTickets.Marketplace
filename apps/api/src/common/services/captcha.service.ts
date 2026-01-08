@@ -52,9 +52,10 @@ export class CaptchaService {
                 this.logger.warn(`Validación de captcha falló: ${JSON.stringify(data)}`);
                 throw new BadRequestException('Captcha inválido, intenta de nuevo.');
             }
-        } catch (error: any) {
-            const message = error?.message || 'Error validando captcha';
-            this.logger.error(`Error en validación de captcha: ${message}`, error?.stack);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Error validando captcha';
+            const stack = error instanceof Error ? error.stack : undefined;
+            this.logger.error(`Error en validación de captcha: ${message}`, stack);
             throw new BadRequestException('No pudimos validar el captcha, intenta nuevamente.');
         }
     }

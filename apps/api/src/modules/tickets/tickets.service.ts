@@ -13,6 +13,18 @@ type TicketStatusResponse =
     | 'EXPIRED'
     | 'RESERVED';
 
+type TicketStatusInput = {
+    status: string;
+    order: {
+        status: string;
+        reservedUntil: Date | null;
+        event?: {
+            startDate?: Date | string | null;
+            endDate?: Date | string | null;
+        } | null;
+    };
+};
+
 @Injectable()
 export class TicketsService {
     constructor(
@@ -319,7 +331,7 @@ export class TicketsService {
         ];
     }
 
-    private computeTicketStatus(ticket: any, tokenExpSeconds: number): TicketStatusResponse {
+    private computeTicketStatus(ticket: TicketStatusInput, tokenExpSeconds: number): TicketStatusResponse {
         if (ticket.status === 'USED') {
             return 'USED';
         }

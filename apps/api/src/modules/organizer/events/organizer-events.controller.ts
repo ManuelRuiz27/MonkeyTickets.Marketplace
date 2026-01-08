@@ -6,6 +6,7 @@ import { AssignTemplateDto } from './dto/assign-template.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
+import type { AuthenticatedRequest } from '../../auth/auth.types';
 
 @Controller('organizer/events')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,14 +15,14 @@ export class OrganizerEventsController {
     constructor(private readonly organizerEventsService: OrganizerEventsService) { }
 
     @Get()
-    listEvents(@Req() req: any) {
+    listEvents(@Req() req: AuthenticatedRequest) {
         const organizerId = this.requireOrganizerId(req);
         return this.organizerEventsService.list(organizerId);
     }
 
     @Post()
     createEvent(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Body() dto: CreateOrganizerEventDto,
     ) {
         const organizerId = this.requireOrganizerId(req);
@@ -30,7 +31,7 @@ export class OrganizerEventsController {
 
     @Get(':id')
     getEvent(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('id') eventId: string,
     ) {
         const organizerId = this.requireOrganizerId(req);
@@ -39,7 +40,7 @@ export class OrganizerEventsController {
 
     @Put(':id')
     updateEvent(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('id') eventId: string,
         @Body() dto: UpdateOrganizerEventDto,
     ) {
@@ -49,7 +50,7 @@ export class OrganizerEventsController {
 
     @Delete(':id')
     cancelEvent(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('id') eventId: string,
     ) {
         const organizerId = this.requireOrganizerId(req);
@@ -58,7 +59,7 @@ export class OrganizerEventsController {
 
     @Put(':id/template')
     assignTemplate(
-        @Req() req: any,
+        @Req() req: AuthenticatedRequest,
         @Param('id') eventId: string,
         @Body() dto: AssignTemplateDto,
     ) {
@@ -69,7 +70,7 @@ export class OrganizerEventsController {
         );
     }
 
-    private requireOrganizerId(req: any): string {
+    private requireOrganizerId(req: AuthenticatedRequest): string {
         const organizerId = req.user?.organizer?.id;
         if (!organizerId) {
             throw new BadRequestException('Organizer context is required');

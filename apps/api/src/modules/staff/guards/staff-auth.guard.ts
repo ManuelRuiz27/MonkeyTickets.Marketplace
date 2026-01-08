@@ -24,7 +24,7 @@ export class StaffAuthGuard implements CanActivate {
         return true;
     }
 
-    private extractToken(request: any): string | null {
+    private extractToken(request: Request): string | null {
         const headerToken = request.headers['x-staff-token'];
         if (typeof headerToken === 'string' && headerToken.trim()) {
             return headerToken.trim();

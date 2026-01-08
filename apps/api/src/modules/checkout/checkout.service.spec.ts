@@ -1,19 +1,28 @@
 import { BadRequestException } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
+import type { Buyer, Event, Order, Ticket, TicketTemplate } from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { CheckoutService } from './checkout.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LegalService } from '../../legal/legal.service';
 import { EmailService } from '../email/email.service';
+import { PaymentService } from './payment.service';
+import { ReservationService } from './reservation.service';
 
 const MOCK_EVENT_ID = 'event-1';
-const MOCK_BUYER = { id: 'buyer-1', email: 'buyer@test.com', name: 'Test Buyer', phone: '5555555555' };
+const MOCK_BUYER: Buyer = {
+    id: 'buyer-1',
+    email: 'buyer@test.com',
+    name: 'Test Buyer',
+    phone: '5555555555',
+} as Buyer;
 
 describe('CheckoutService', () => {
     let prisma: DeepMockProxy<PrismaService>;
     let legalService: Pick<LegalService, 'logOrderContext'>;
-    let reservationService: any;
-    let emailService: Pick<EmailService, 'sendTicketsEmail'>;
+    let reservationService: ReservationService;
+    let emailService: Pick<EmailService, 'sendTicketsEmail' | 'sendPendingPaymentEmail'>;
+    let paymentService: Pick<PaymentService, 'createPreference'>;
     let service: CheckoutService;
 
     beforeEach(() => {
@@ -22,18 +31,29 @@ describe('CheckoutService', () => {
             logOrderContext: jest.fn(),
         };
         reservationService = {
-            lockTickets: jest.fn().mockResolvedValue(true),
-            releaseTickets: jest.fn(),
-            releaseReservation: jest.fn().mockResolvedValue(undefined),
             checkAvailability: jest.fn().mockResolvedValue(true),
-            validateAvailability: jest.fn().mockResolvedValue(undefined),
             reserveTickets: jest.fn().mockResolvedValue(true),
-        };
+            releaseReservation: jest.fn().mockResolvedValue(undefined),
+        } as unknown as ReservationService;
         emailService = {
             sendTicketsEmail: jest.fn().mockResolvedValue(undefined),
+            sendPendingPaymentEmail: jest.fn().mockResolvedValue(undefined),
+        };
+        paymentService = {
+            createPreference: jest.fn().mockResolvedValue({
+                preferenceId: 'pref-123',
+                initPoint: 'https://sandbox.mercadopago.com.mx/checkout/v1/redirect?pref_id=...',
+                sandboxInitPoint: 'https://sandbox.mercadopago.com.mx/checkout/v1/redirect?pref_id=...',
+            }),
         };
         prisma.$transaction.mockImplementation(async (callback) => callback(prisma as unknown as PrismaClient));
-        service = new CheckoutService(prisma, legalService as LegalService, reservationService, emailService as EmailService);
+        service = new CheckoutService(
+            prisma,
+            legalService as LegalService,
+            reservationService,
+            emailService as EmailService,
+            paymentService as PaymentService
+        );
     });
 
     it('creates a checkout session computing totals', async () => {
@@ -44,7 +64,15 @@ describe('CheckoutService', () => {
             id: MOCK_EVENT_ID,
             status: 'PUBLISHED',
             endDate: null,
-        } as any);
+            organizerId: 'organizer-1',
+            organizer: {
+                feePlan: {
+                    platformFeePercent: new Prisma.Decimal(10),
+                    platformFeeFixed: new Prisma.Decimal(5),
+                    paymentGatewayFeePercent: new Prisma.Decimal(3.5),
+                },
+            },
+        } as unknown as Event);
 
         const templates = [
             {
@@ -61,19 +89,19 @@ describe('CheckoutService', () => {
                 currency: 'MXN',
                 quantity: 10,
             },
-        ];
+        ] as unknown as TicketTemplate[];
 
         prisma.ticketTemplate.findMany
-            .mockResolvedValueOnce(templates as any)
-            .mockResolvedValueOnce(templates as any);
+            .mockResolvedValueOnce(templates)
+            .mockResolvedValueOnce(templates);
 
         prisma.buyer.findFirst.mockResolvedValue(null);
-        prisma.buyer.create.mockResolvedValue(MOCK_BUYER as any);
+        prisma.buyer.create.mockResolvedValue(MOCK_BUYER);
         prisma.order.create.mockResolvedValue({
             id: 'order-123',
             total: new Prisma.Decimal(250),
             currency: 'MXN',
-        } as any);
+        } as unknown as Order);
         const response = await service.createCheckoutSession(
             {
                 eventId: MOCK_EVENT_ID,
@@ -98,12 +126,16 @@ describe('CheckoutService', () => {
             currency: 'MXN',
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
             reservedUntil: expect.any(String),
+            preferenceId: 'pref-123',
+            initPoint: expect.any(String),
         });
         expect(prisma.order.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({
                     total: 250,
                     currency: 'MXN',
+                    platformFeeAmount: 30,
+                    organizerIncomeAmount: 211.25,
                 }),
             }),
         );
@@ -120,7 +152,7 @@ describe('CheckoutService', () => {
         prisma.event.findUnique.mockResolvedValue({
             id: MOCK_EVENT_ID,
             status: 'DRAFT',
-        } as any);
+        } as unknown as Event);
 
         await expect(
             service.createCheckoutSession({
@@ -144,7 +176,7 @@ describe('CheckoutService', () => {
                 email: 'buyer@test.com',
                 phone: '5512345678',
             },
-        } as any);
+        } as unknown as Order);
 
         const summary = await service.getCheckoutOrderSummary('order-1');
 
@@ -170,15 +202,15 @@ describe('CheckoutService', () => {
             status: 'PENDING',
             items: [{ templateId: 'template-1', quantity: 2 }],
             tickets: [],
-        } as any);
+        } as unknown as Order);
         prisma.ticketTemplate.findMany.mockResolvedValue([
             { id: 'template-1', quantity: 10, sold: 1, name: 'General' },
-        ] as any);
-        prisma.ticketTemplate.update.mockResolvedValue({} as any);
+        ] as unknown as TicketTemplate[]);
+        prisma.ticketTemplate.update.mockResolvedValue({} as TicketTemplate);
         prisma.ticket.create
-            .mockResolvedValueOnce({ id: 'ticket-1' } as any)
-            .mockResolvedValueOnce({ id: 'ticket-2' } as any);
-        prisma.order.update.mockResolvedValue({ id: 'order-1' } as any);
+            .mockResolvedValueOnce({ id: 'ticket-1' } as Ticket)
+            .mockResolvedValueOnce({ id: 'ticket-2' } as Ticket);
+        prisma.order.update.mockResolvedValue({ id: 'order-1' } as unknown as Order);
 
         const result = await service.completeManualOrder('order-1');
 
@@ -202,7 +234,7 @@ describe('CheckoutService', () => {
             status: 'PAID',
             items: [],
             tickets: [{ id: 'ticket-existing' }],
-        } as any);
+        } as unknown as Order);
 
         const result = await service.completeManualOrder('order-2');
 

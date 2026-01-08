@@ -30,7 +30,7 @@ export class TicketsController {
         this.ensureRateLimit(`verify:${req.staffSession?.id}:${req.ip}`, 15, 10_000);
         try {
             return await this.ticketsService.verifyTicketToken(token, req.staffSession!);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (error instanceof HttpException) {
                 // Errores de dominio ya normalizados
                 throw error;
@@ -52,7 +52,7 @@ export class TicketsController {
         this.ensureRateLimit(`checkin:${req.staffSession?.id}:${req.ip}`, 10, 10_000);
         try {
             return await this.ticketsService.checkInTicket(qrCode, req.staffSession!);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (error instanceof HttpException) {
                 throw error;
             }
@@ -72,7 +72,7 @@ export class TicketsController {
     ) {
         try {
             return await this.ticketsService.getEventAttendance(eventId, req.staffSession!);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (error instanceof HttpException) {
                 throw error;
             }

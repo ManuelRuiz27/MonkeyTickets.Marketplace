@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: mono-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: monomarket
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - mono-net
+
+  redis:
+    image: redis:alpine
+    container_name: mono-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mono-net
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: mono-api
+    depends_on:
+      - db
+      - redis
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://admin:password123@db:5432/monomarket
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: super-secret-key-that-is-at-least-64-characters-long-for-validations-12345
+      API_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:5173
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-TEST-ACCESS-TOKEN}
+    ports:
+      - "3000:3000"
+    networks:
+      - mono-net
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000/api
+        VITE_MERCADO_PAGO_PUBLIC_KEY: ${MERCADO_PAGO_PUBLIC_KEY:-TEST-PUBLIC-KEY}
+    container_name: mono-web
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+    networks:
+      - mono-net
+
+networks:
+  mono-net:
+    driver: bridge
+
+volumes:
+  db-data:

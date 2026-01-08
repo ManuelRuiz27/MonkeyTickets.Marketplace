@@ -44,6 +44,9 @@ WORKDIR /app/apps/web
 ARG VITE_API_URL=http://localhost:3000/api
 ENV VITE_API_URL=$VITE_API_URL
 
+ARG VITE_MERCADO_PAGO_PUBLIC_KEY
+ENV VITE_MERCADO_PAGO_PUBLIC_KEY=$VITE_MERCADO_PAGO_PUBLIC_KEY
+
 RUN pnpm run build
 
 # ============================================
