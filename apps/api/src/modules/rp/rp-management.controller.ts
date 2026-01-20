@@ -8,6 +8,7 @@ import {
     Param,
     UseGuards,
     Req,
+    ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -18,6 +19,14 @@ import {
     UpdateRPProfileDto,
 } from './rp-management.service';
 import type { AuthenticatedRequest } from '../auth/auth.types';
+
+function requireOrganizerId(req: AuthenticatedRequest): string {
+    const organizerId = req.user.organizer?.id;
+    if (!organizerId) {
+        throw new ForbiddenException('Organizer context is required.');
+    }
+    return organizerId;
+}
 
 @Controller('organizer/events/:eventId/rp-users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,7 +43,7 @@ export class RPUsersController {
         @Req() req: AuthenticatedRequest,
         @Body() createRPUserDto: CreateRPUserDto,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.createRPUser(organizerId, {
             ...createRPUserDto,
             eventId,
@@ -49,7 +58,7 @@ export class RPUsersController {
         @Param('eventId') eventId: string,
         @Req() req: AuthenticatedRequest,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.listRPsByEvent(eventId, organizerId);
     }
 }
@@ -68,7 +77,7 @@ export class RPUserManagementController {
         @Param('rpProfileId') rpProfileId: string,
         @Req() req: AuthenticatedRequest,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.getRPProfile(rpProfileId, organizerId);
     }
 
@@ -81,7 +90,7 @@ export class RPUserManagementController {
         @Req() req: AuthenticatedRequest,
         @Body() updateRPProfileDto: UpdateRPProfileDto,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.updateRPProfile(
             rpProfileId,
             organizerId,
@@ -97,7 +106,7 @@ export class RPUserManagementController {
         @Param('rpProfileId') rpProfileId: string,
         @Req() req: AuthenticatedRequest,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.deleteRPUser(rpProfileId, organizerId);
     }
 
@@ -109,7 +118,7 @@ export class RPUserManagementController {
         @Param('rpProfileId') rpProfileId: string,
         @Req() req: AuthenticatedRequest,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.toggleRPStatus(rpProfileId, organizerId);
     }
 
@@ -122,7 +131,7 @@ export class RPUserManagementController {
         @Req() req: AuthenticatedRequest,
         @Body('newPassword') newPassword: string,
     ) {
-        const organizerId = req.user.organizer?.id;
+        const organizerId = requireOrganizerId(req);
         return this.rpManagementService.resetRPPassword(
             rpProfileId,
             organizerId,
