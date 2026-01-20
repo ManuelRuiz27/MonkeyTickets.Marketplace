@@ -6,15 +6,10 @@ databases:
 services:
   - type: web
     name: monomarket-api
-    env: node
+    env: docker
     plan: free
-    rootDir: .
-    buildCommand: |
-      pnpm install
-      pnpm run contracts:generate
-      pnpm run build:packages
-      pnpm --filter @monomarket/api build
-    startCommand: pnpm --filter @monomarket/api run start:deploy
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
@@ -59,11 +54,12 @@ services:
   - type: web
     name: monomarket-web
     env: static
-    rootDir: apps/web
+    rootDir: .
     buildCommand: |
       pnpm install --filter @monomarket/web...
+      pnpm run contracts:generate
       pnpm --filter @monomarket/web run build
-    staticPublishPath: dist
+    staticPublishPath: apps/web/dist
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -74,11 +70,12 @@ services:
   - type: web
     name: monomarket-scanner
     env: static
-    rootDir: apps/scanner
+    rootDir: .
     buildCommand: |
       pnpm install --filter @monomarket/scanner...
+      pnpm run contracts:generate
       pnpm --filter @monomarket/scanner run build
-    staticPublishPath: dist
+    staticPublishPath: apps/scanner/dist
     envVars:
       - key: VITE_API_URL
         fromService:
