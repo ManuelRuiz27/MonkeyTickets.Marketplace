@@ -8,7 +8,6 @@ import {
     Param,
     UseGuards,
     Req,
-    ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -19,14 +18,6 @@ import {
     UpdateGuestTypeDto,
 } from './guest-types.service';
 import type { AuthenticatedRequest } from '../auth/auth.types';
-
-function requireOrganizerId(req: AuthenticatedRequest): string {
-    const organizerId = req.user.organizer?.id;
-    if (!organizerId) {
-        throw new ForbiddenException('Organizer context is required.');
-    }
-    return organizerId;
-}
 
 /**
  * Endpoints para gestión de tipos de invitado por evento
@@ -46,7 +37,7 @@ export class GuestTypesByEventController {
         @Req() req: AuthenticatedRequest,
         @Body() createGuestTypeDto: CreateGuestTypeDto,
     ) {
-        const organizerId = requireOrganizerId(req);
+        const organizerId = req.user.organizer?.id;
         return this.guestTypesService.createGuestType(organizerId, {
             ...createGuestTypeDto,
             eventId,
@@ -58,7 +49,7 @@ export class GuestTypesByEventController {
      */
     @Get()
     async listGuestTypes(@Param('eventId') eventId: string, @Req() req: AuthenticatedRequest) {
-        const organizerId = requireOrganizerId(req);
+        const organizerId = req.user.organizer?.id;
         return this.guestTypesService.listGuestTypes(eventId, organizerId);
     }
 
@@ -71,7 +62,7 @@ export class GuestTypesByEventController {
         @Req() req: AuthenticatedRequest,
         @Body('orderedIds') orderedIds: string[],
     ) {
-        const organizerId = requireOrganizerId(req);
+        const organizerId = req.user.organizer?.id;
         return this.guestTypesService.reorderGuestTypes(
             eventId,
             organizerId,
@@ -94,7 +85,7 @@ export class GuestTypesManagementController {
      */
     @Get(':guestTypeId')
     async getGuestType(@Param('guestTypeId') guestTypeId: string, @Req() req: AuthenticatedRequest) {
-        const organizerId = requireOrganizerId(req);
+        const organizerId = req.user.organizer?.id;
         return this.guestTypesService.getGuestType(guestTypeId, organizerId);
     }
 
@@ -107,7 +98,7 @@ export class GuestTypesManagementController {
         @Req() req: AuthenticatedRequest,
         @Body() updateGuestTypeDto: UpdateGuestTypeDto,
     ) {
-        const organizerId = requireOrganizerId(req);
+        const organizerId = req.user.organizer?.id;
         return this.guestTypesService.updateGuestType(
             guestTypeId,
             organizerId,
@@ -123,7 +114,7 @@ export class GuestTypesManagementController {
         @Param('guestTypeId') guestTypeId: string,
         @Req() req: AuthenticatedRequest,
     ) {
-        const organizerId = requireOrganizerId(req);
+        const organizerId = req.user.organizer?.id;
         return this.guestTypesService.deleteGuestType(guestTypeId, organizerId);
     }
 }

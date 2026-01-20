@@ -39,13 +39,8 @@ export class IdempotencyMiddleware implements NestMiddleware {
 
             if (age < this.TTL_MS) {
                 // Request duplicada dentro del TTL, retornar respuesta cacheada
-                const cachedResponse = cached.response;
-                const cachedBody =
-                    cachedResponse && typeof cachedResponse === 'object'
-                        ? { ...(cachedResponse as Record<string, unknown>) }
-                        : { data: cachedResponse };
                 return res.status(200).json({
-                    ...cachedBody,
+                    ...cached.response,
                     _idempotent: true,
                     _cached_ago_ms: age,
                 });
