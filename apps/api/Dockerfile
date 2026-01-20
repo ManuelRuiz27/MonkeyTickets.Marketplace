@@ -35,7 +35,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install pnpm and prisma (needed for migrations)
-RUN npm install -g pnpm@latest prisma
+RUN npm install -g pnpm@9.12.3 prisma@6.19.1
 
 # Copy root package files
 COPY --from=builder /build/package.json /build/pnpm-lock.yaml /build/pnpm-workspace.yaml ./
