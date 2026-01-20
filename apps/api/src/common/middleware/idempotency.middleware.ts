@@ -8,7 +8,7 @@ import { createHash } from 'crypto';
  */
 @Injectable()
 export class IdempotencyMiddleware implements NestMiddleware {
-    private readonly cache = new Map<string, { response: unknown; timestamp: number }>();
+    private readonly cache = new Map<string, { response: unknown; timestamp: number; statusCode: number }>();
     private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
     use(req: Request, res: Response<unknown>, next: NextFunction) {
@@ -39,11 +39,9 @@ export class IdempotencyMiddleware implements NestMiddleware {
 
             if (age < this.TTL_MS) {
                 // Request duplicada dentro del TTL, retornar respuesta cacheada
-                return res.status(200).json({
-                    ...cached.response,
-                    _idempotent: true,
-                    _cached_ago_ms: age,
-                });
+                res.setHeader('X-Idempotent', 'true');
+                res.setHeader('X-Idempotent-Cached-Ago-Ms', age.toString());
+                return res.status(cached.statusCode).json(cached.response);
             } else {
                 // TTL expirado, eliminar del cache
                 this.cache.delete(requestHash);
@@ -58,6 +56,7 @@ export class IdempotencyMiddleware implements NestMiddleware {
                 this.cache.set(requestHash, {
                     response: body,
                     timestamp: Date.now(),
+                    statusCode: res.statusCode,
                 });
 
                 // Cleanup viejo (cada 100 requests)
