@@ -53,8 +53,8 @@ RUN pnpm install --prod --frozen-lockfile
 # Copy built application
 COPY --from=builder /build/apps/api/dist ./apps/api/dist
 
-# Copy node_modules with Prisma client
-COPY --from=builder /build/node_modules/.prisma ./node_modules/.prisma
+# Generate Prisma client in the runtime image (prod deps + prisma schema present)
+RUN pnpm --filter @monomarket/api prisma:generate
 
 WORKDIR /app/apps/api
 
