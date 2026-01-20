@@ -10,10 +10,28 @@ fi
 
 retry_count=${MIGRATE_RETRY_COUNT:-5}
 retry_delay=${MIGRATE_RETRY_DELAY_SECONDS:-3}
+migrate_mode=${PRISMA_MIGRATE_MODE:-auto}
+
+if [ "$migrate_mode" = "auto" ]; then
+  if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+    migrate_mode="deploy"
+  else
+    migrate_mode="push"
+  fi
+fi
+
+if [ "$migrate_mode" = "deploy" ]; then
+  migrate_cmd="pnpm prisma:migrate:deploy"
+elif [ "$migrate_mode" = "push" ]; then
+  migrate_cmd="pnpm prisma db push --skip-generate"
+else
+  echo "Invalid PRISMA_MIGRATE_MODE: $migrate_mode (use auto, deploy, or push)"
+  exit 1
+fi
 
 i=1
 while [ "$i" -le "$retry_count" ]; do
-  if pnpm prisma:migrate:deploy; then
+  if sh -c "$migrate_cmd"; then
     break
   fi
   echo "Migration failed. Retry $i/$retry_count in ${retry_delay}s..."
