@@ -6,6 +6,18 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('🌱 Starting database seeding...');
 
+    const [userCount, eventCount, orderCount, feePlanCount] = await prisma.$transaction([
+        prisma.user.count(),
+        prisma.event.count(),
+        prisma.order.count(),
+        prisma.feePlan.count(),
+    ]);
+
+    if (userCount + eventCount + orderCount + feePlanCount > 0) {
+        console.log('🗑️  Database is not empty. Skipping seed.');
+        return;
+    }
+
     // Clear existing data
     console.log('🗑️  Clearing existing data...');
     await prisma.ticket.deleteMany();
