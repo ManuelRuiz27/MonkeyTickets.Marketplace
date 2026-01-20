@@ -66,7 +66,7 @@ EXPOSE 3000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
+  CMD node -e "const port = process.env.PORT || 3000; require('http').get('http://localhost:' + port + '/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
 
 # Start script: run migrations then start app
-CMD sh -c "pnpm prisma:migrate:deploy && node dist/main.js"
+CMD sh -c "pnpm prisma:migrate:deploy && node dist/apps/api/src/main.js"
