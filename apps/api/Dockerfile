@@ -53,6 +53,10 @@ RUN pnpm install --prod --frozen-lockfile
 # Copy built application
 COPY --from=builder /build/apps/api/dist ./apps/api/dist
 
+# Copy entrypoint
+COPY apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Generate Prisma client in the runtime image (prod deps + prisma schema present)
 RUN pnpm --filter @monomarket/api prisma:generate
 
@@ -70,4 +74,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
   CMD node -e "const port = process.env.PORT || 3000; require('http').get('http://localhost:' + port + '/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
 
 # Start script: run migrations, optionally seed, then start app
-CMD sh -c "pnpm prisma:migrate:deploy && if [ \"$RUN_SEED\" = \"true\" ]; then pnpm prisma:seed; fi && node dist/apps/api/src/main.js"
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "dist/apps/api/src/main.js"]
