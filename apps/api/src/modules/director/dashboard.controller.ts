@@ -119,7 +119,15 @@ export class DirectorController {
     @Get('organizers')
     async listOrganizers(@Req() req: Request) {
         const statusValue = req.query.status;
-        const status = Array.isArray(statusValue) ? statusValue[0] : statusValue;
+        let status: string | undefined;
+        if (typeof statusValue === 'string') {
+            status = statusValue;
+        } else if (Array.isArray(statusValue)) {
+            const first = statusValue[0];
+            if (typeof first === 'string') {
+                status = first;
+            }
+        }
         return this.dashboardService.listOrganizers(status);
     }
 
