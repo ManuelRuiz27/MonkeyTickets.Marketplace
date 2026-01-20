@@ -34,8 +34,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Install pnpm and prisma (needed for migrations)
-RUN npm install -g pnpm@9.12.3 prisma@6.19.1
+# Install pnpm/prisma + ts-node for optional seeding
+RUN npm install -g pnpm@9.12.3 prisma@6.19.1 ts-node@10.9.2 typescript@5.3.3
 
 # Copy root package files
 COPY --from=builder /build/package.json /build/pnpm-lock.yaml /build/pnpm-workspace.yaml ./
@@ -61,6 +61,7 @@ WORKDIR /app/apps/api
 # Environment
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV RUN_SEED=false
 
 EXPOSE 3000
 
@@ -68,5 +69,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
   CMD node -e "const port = process.env.PORT || 3000; require('http').get('http://localhost:' + port + '/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
 
-# Start script: run migrations then start app
-CMD sh -c "pnpm prisma:migrate:deploy && node dist/apps/api/src/main.js"
+# Start script: run migrations, optionally seed, then start app
+CMD sh -c "pnpm prisma:migrate:deploy && if [ \"$RUN_SEED\" = \"true\" ]; then pnpm prisma:seed; fi && node dist/apps/api/src/main.js"
