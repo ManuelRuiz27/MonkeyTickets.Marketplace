@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "installCommand": "pnpm install --frozen-lockfile --prod=false",
+  "buildCommand": "pnpm --filter @monomarket/scanner run build",
+  "outputDirectory": "dist"
+}
