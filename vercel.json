@@ -1,7 +1,7 @@
 {
     "version": 2,
-    "installCommand": "pnpm install --frozen-lockfile",
-    "buildCommand": "pnpm run build:packages && pnpm --filter @monomarket/api run prisma:migrate:deploy && pnpm --filter @monomarket/api run build",
+    "installCommand": "pnpm install --frozen-lockfile --prod=false",
+    "buildCommand": "pnpm -w run build:packages && pnpm --filter @monomarket/api run prisma:migrate:deploy && pnpm --filter @monomarket/api run build",
     "builds": [
         {
             "src": "apps/api/dist/vercel.js",
